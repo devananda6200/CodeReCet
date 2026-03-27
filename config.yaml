@@ -1,0 +1,77 @@
+# ============================================================
+# PPE Compliance Detection — Runtime Configuration
+# ============================================================
+
+# --- Model & Inference ---
+model:
+  path: "models/yolo11l.pt"          # Path to YOLO model file (.pt / .onnx / .xml)
+  backend: "pytorch"                  # pytorch | onnx | openvino
+  input_size: 640                     # Model input resolution (square)
+  confidence_threshold: 0.45
+  nms_iou_threshold: 0.50
+  half_precision: false               # Not used on CPU, placeholder
+
+# --- Class Mapping ---
+# Map model output indices to class names
+classes:
+  0: "person"
+  1: "helmet"
+  2: "safety_vest"
+
+# --- Stream Settings ---
+streams:
+  max_concurrent: 4
+  queue_size: 5                       # Bounded queue per stream (frames)
+  reconnect_delay_sec: 5.0
+  reconnect_max_retries: 10
+
+# --- Frame Skipping & Tracking ---
+pipeline:
+  frame_skip: 3                       # Full inference every N-th frame
+  tracker_max_disappeared: 15         # Frames before dropping a track
+  tracker_iou_threshold: 0.30         # Min IoU to match detection to track
+  anti_flicker_min_hits: 3            # Min consecutive detections to emit
+  tracker_velocity_smoothing: 0.5     # EMA factor for velocity estimation
+
+# --- Adaptive Resolution ---
+resolution:
+  tiers:
+    - 1920    # 1080p width
+    - 1280    # 720p
+    - 854     # 480p
+    - 640     # fallback
+  fps_low_threshold: 8.0              # Drop resolution if FPS below this
+  fps_high_threshold: 14.0            # Restore resolution if FPS above this
+  eval_window_sec: 3.0                # Seconds to average FPS over
+
+# --- Compliance Logic ---
+compliance:
+  head_region_ratio: 0.30             # Top 30% of person bbox = head
+  torso_region_top: 0.25              # Torso starts at 25% from top
+  torso_region_bottom: 0.65           # Torso ends at 65% from top
+  overlap_iou_threshold: 0.15         # Min IoU to associate PPE with region
+
+# --- Alerts ---
+alerts:
+  cooldown_sec: 10.0                  # Don't re-alert same track+violation within this window
+  max_history: 500                    # Max stored alert records
+  latency_target_ms: 300              # Target alert latency
+
+# --- Metrics ---
+metrics:
+  collection_interval_sec: 1.0
+  fps_window_sec: 5.0                 # Sliding window for FPS calculation
+
+# --- Server ---
+server:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "*"
+
+# --- Resource Limits ---
+resources:
+  max_cpu_cores: 8
+  onnx_inter_threads: 2
+  onnx_intra_threads: 4
+  openvino_num_requests: 2
