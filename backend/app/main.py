@@ -73,6 +73,12 @@ app.include_router(router)            # REST  → /api/*
 app.include_router(ws_router)         # WS    → /ws/*
 
 
+@app.get("/", include_in_schema=False)
+def root():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/docs")
+
+
 # ── Standalone run ────────────────────────────────────────────────
 
 if __name__ == "__main__":

@@ -47,13 +47,14 @@ class StreamPipeline:
     def __init__(
         self,
         stream_id: str,
+        name: str,
         source: str | int,
         engine: InferenceBackend,
         on_result: Optional[Callable[[FramePacket], None]] = None,
     ):
         self.stream_id = stream_id
         self.source = source
-        self.info = StreamInfo(stream_id=stream_id, source=str(source))
+        self.info = StreamInfo(stream_id=stream_id, name=name, source=str(source))
 
         # Shared inference engine (thread-safe for single-stream sequential use)
         self._engine = engine
@@ -306,7 +307,7 @@ class StreamManager:
 
     # ── Stream CRUD ───────────────────────────────────────────────
 
-    def add_stream(self, stream_id: str, source: str | int) -> StreamInfo:
+    def add_stream(self, stream_id: str, source: str | int, name: str = "") -> StreamInfo:
         """Add a new video stream and start processing."""
         # Ensure inference engine is loaded (lazy init)
         self._ensure_engine()
@@ -319,8 +320,12 @@ class StreamManager:
                     f"Maximum concurrent streams ({settings.streams.max_concurrent}) reached"
                 )
 
+            if not name:
+                name = stream_id
+
             pipeline = StreamPipeline(
                 stream_id=stream_id,
+                name=name,
                 source=source,
                 engine=self._engine,
                 on_result=self._result_callback,

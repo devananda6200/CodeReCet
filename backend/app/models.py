@@ -76,9 +76,9 @@ class Detection:
 
 class ComplianceStatus(str, Enum):
     COMPLIANT = "compliant"
-    HELMET_MISSING = "helmet_missing"
-    VEST_MISSING = "vest_missing"
-    NON_COMPLIANT = "non_compliant"  # both missing
+    HELMET_MISSING = "missing_helmet"
+    VEST_MISSING = "missing_vest"
+    NON_COMPLIANT = "missing_both"
 
 
 @dataclass(slots=True)
@@ -141,6 +141,7 @@ class StreamInfo:
     """Metadata about an active video stream."""
     stream_id: str
     source: str                          # URL, file path, or webcam index
+    name: str = ""                       # user-friendly name
     state: StreamState = StreamState.STARTING
     current_resolution_tier: int = 0     # Index into resolution tiers
     fps: float = 0.0
