@@ -9,7 +9,7 @@ Although modern object detection models such as YOLO11 Large offer strong accura
 ## Proposed Solution
 We propose a **Real-Time PPE Compliance Monitoring System** optimized for **CPU-only edge deployment**.
 
-The system focuses on detecting:
+The system focuses on detecting(based on Industrial hazards):
 - Person
 - Helmet
 - Safety Vest
