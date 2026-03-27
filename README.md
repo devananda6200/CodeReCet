@@ -2,7 +2,7 @@
 Real-Time YOLO11Ops Challenge — Arakkunnam 99 | Code Recet powered by Armada
 
 ## Problem Statement
-In industrial environments such as construction sites, warehouses, and manufacturing floors, worker safety depends heavily on proper use of Personal Protective Equipment (PPE) like helmets and safety vests. Manual monitoring is difficult, inconsistent, and not scalable across multiple camera feeds.
+In industrial environments such as construction sites, warehouses, and manufacturing floors, worker safety depends heavily on proper use of Personal Protective Equipment (PPE) like helmets and safety vests. Manual monitoring is difficult, inconsistent, and not scalable across multiple camera feeds..
 
 Although modern object detection models such as YOLO11 Large offer strong accuracy for safety-critical applications, they are often too slow to run in real time on standard industrial PCs that rely only on CPUs. This creates a challenge: how can we maintain high detection accuracy while achieving real-time performance without expensive GPU hardware?
 
