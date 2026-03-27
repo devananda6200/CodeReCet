@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { initialStreams, initialAlerts, mockScenarios, mockMetrics } from '../mock/mockData';
+import { initialStreams, initialAlerts } from '../mock/mockData';
 import { StreamGrid } from './StreamGrid';
 import { BottomBar } from './BottomBar';
 import type { Alert, StreamData } from '../types';
@@ -7,18 +7,16 @@ import type { Alert, StreamData } from '../types';
 export const Dashboard: React.FC = () => {
   const [streams, setStreams] = useState<StreamData[]>(initialStreams);
   const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-  const [selectedScenario, setSelectedScenario] = useState<keyof typeof mockScenarios>('mixed');
+  const [time, setTime] = useState(new Date());
 
-  // Simulator
   useEffect(() => {
-    const interval = setInterval(() => {
+    // 1. Clock ticks every second
+    const clockInterval = setInterval(() => setTime(new Date()), 1000);
+
+    // 2. Detection targets jitter every 800ms to simulate live CCTV
+    const trackingInterval = setInterval(() => {
       setStreams(prev => prev.map(stream => ({
         ...stream,
-        metrics: {
-          ...stream.metrics,
-          fps: mockMetrics.fps + (Math.random() * 4 - 2),
-          cpu: Math.max(10, Math.min(100, mockMetrics.cpu + (Math.random() * 10 - 5))),
-        },
         detections: stream.detections.map(det => ({
           ...det,
           box: {
@@ -29,28 +27,27 @@ export const Dashboard: React.FC = () => {
         }))
       })));
 
-      if (Math.random() > 0.8) {
+      // Occasional alert pop-in to populate the Live Logs
+      if (Math.random() > 0.85) {
         const types: Alert['type'][] = ['missing_helmet', 'missing_vest', 'missing_both'];
         const randomType = types[Math.floor(Math.random() * types.length)];
         
         setAlerts(prev => [{
           id: `alert_${Date.now()}`,
-          streamId: `stream_${Math.floor(Math.random() * 4) + 1}`,
+          streamId: `CAM_${Math.floor(Math.random() * 4) + 1}`,
           timestamp: new Date().toISOString(),
           type: randomType,
           severity: (randomType === 'missing_both' ? 'critical' : 'medium') as Alert['severity'],
           resolved: false
-        }, ...prev].slice(0, 5)); // Keep only latest 5 alerts!
+        }, ...prev].slice(0, 5)); // Keep only latest 5 alerts
       }
-    }, 500);
+    }, 800);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(clockInterval);
+      clearInterval(trackingInterval);
+    };
   }, []);
-
-  const handleScenarioChange = (scenario: keyof typeof mockScenarios) => {
-    setSelectedScenario(scenario);
-    setStreams(prev => prev.map(s => ({ ...s, detections: mockScenarios[scenario] })));
-  };
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0b0f14] text-gray-200">
@@ -64,18 +61,10 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4 text-sm font-mono text-gray-400">
-          <select 
-            className="bg-gray-900 border border-gray-700 px-3 py-1.5 rounded outline-none appearance-none cursor-pointer focus:border-gray-500 text-xs uppercase tracking-widest"
-            value={selectedScenario}
-            onChange={(e) => handleScenarioChange(e.target.value as any)}
-          >
-            <option value="compliant">All Compliant</option>
-            <option value="missingHelmet">Missing Helmet</option>
-            <option value="missingVest">Missing Vest</option>
-            <option value="missingBoth">Missing Both</option>
-            <option value="mixed">Mixed Demo</option>
-          </select>
-          <span>{new Date().toLocaleTimeString([], { hour12: false })}</span>
+          <span className="bg-gray-900 border border-gray-700 px-3 py-1.5 rounded outline-none tracking-widest text-white font-bold text-xs uppercase">
+            FULL DEMO
+          </span>
+          <span>{time.toLocaleTimeString([], { hour12: false })}</span>
         </div>
       </header>
 

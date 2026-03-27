@@ -18,8 +18,6 @@ export const BottomBar: React.FC<BottomBarProps> = ({ streams, alerts }) => {
     return { total, compliant, violations: total - compliant };
   }, [streams]);
 
-  const metrics = streams[0]?.metrics || { fps: 0, latency: 0, cpu: 0, ram: 0 };
-
   return (
     <div className="flex w-full h-full">
       {/* LEFT: Summary */}
@@ -63,13 +61,6 @@ export const BottomBar: React.FC<BottomBarProps> = ({ streams, alerts }) => {
           </div>
         </div>
 
-        {/* Inline Metrics Footer */}
-        <div className="pt-3 mt-4 border-t border-gray-800/50 flex flex-wrap items-center gap-6 text-xs font-mono text-gray-400">
-           <span className="tracking-widest">FPS: <span className="text-gray-200">{metrics.fps.toFixed(1)}</span></span>
-           <span className="tracking-widest">LAT: <span className="text-gray-200">{metrics.latency}ms</span></span>
-           <span className={`tracking-widest ${metrics.cpu > 80 ? 'text-red-500' : ''}`}>CPU: <span className="text-gray-200">{metrics.cpu.toFixed(0)}%</span></span>
-           <span className="tracking-widest">RAM: <span className="text-gray-200">{metrics.ram.toFixed(1)}GB</span></span>
-        </div>
       </div>
     </div>
   );
