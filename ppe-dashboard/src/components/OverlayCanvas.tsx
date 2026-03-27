@@ -1,19 +1,17 @@
 import React, { useEffect, useRef } from 'react';
-import type { Detection, PersonRecord } from '../types';
+import type { BackendSocketMessage } from '../types';
 
 interface OverlayCanvasProps {
-  detections: Detection[];
-  persons: PersonRecord[];
+  message?: BackendSocketMessage;
 }
 
-export const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ detections, persons }) => {
+export const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ message }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Optional: resize to fit container accurately if desired
     const parent = canvas.parentElement;
     if (parent && (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight)) {
       canvas.width = parent.clientWidth;
@@ -25,56 +23,72 @@ export const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ detections, person
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    if (!message) return;
+
+    const { detections, compliance } = message;
+
     const getPersonColor = (status: string) => {
       switch (status) {
         case 'compliant': return '#10b981';
-        case 'missing_helmet': return '#ef4444';
-        case 'missing_vest': return '#f97316';
-        case 'missing_both': return '#7f1d1d';
+        case 'helmet_missing': return '#ef4444';
+        case 'vest_missing': return '#f97316';
+        case 'both_missing': return '#7f1d1d';
         default: return '#ffffff';
       }
     };
 
-    persons.forEach(person => {
-      const color = getPersonColor(person.status);
-      
-      // Thin Border
+    // Calculate dynamic scaling from a standard 640x480 YOLO stream output format to our responsive CSS canvas size.
+    // If backend dynamically sets resolution, this could be refactored, assuming 640x480 for classic YOLO aspect.
+    const scaleX = canvas.width / 640;
+    const scaleY = canvas.height / 480;
+
+    // 1. Draw Persons
+    detections.filter(d => d.class === 'person').forEach(det => {
+      const comp = compliance.find(c => c.track_id === det.track_id);
+      const status = comp ? comp.status : 'unknown';
+      const color = getPersonColor(status);
+
+      const x = det.bbox.x1 * scaleX;
+      const y = det.bbox.y1 * scaleY;
+      const w = (det.bbox.x2 - det.bbox.x1) * scaleX;
+      const h = (det.bbox.y2 - det.bbox.y1) * scaleY;
+
+      // Draw box
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
-      ctx.strokeRect(person.box.x, person.box.y, person.box.w, person.box.h);
+      ctx.strokeRect(x, y, w, h);
 
-      // Label
+      // Label background
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      const labelText = `[PERSON #${person.id} - ${person.status.replace('_', ' ').toUpperCase()}]`;
+      const labelText = `[ID:${det.track_id} - ${status.toUpperCase()}]`;
       
       ctx.font = '10px monospace';
       const textWidth = ctx.measureText(labelText).width;
       
-      ctx.fillRect(person.box.x, person.box.y - 14, textWidth + 8, 14);
+      ctx.fillRect(x, y - 14, textWidth + 8, 14);
 
+      // Label text
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(labelText, person.box.x + 4, person.box.y - 4);
+      ctx.fillText(labelText, x + 4, y - 4);
     });
 
-    // Sub items very faint
-    detections.forEach(det => {
-      if (det.class === 'person') return;
-      
+    // 2. Draw PPE items faintly
+    detections.filter(d => d.class !== 'person').forEach(det => {
+      const x = det.bbox.x1 * scaleX;
+      const y = det.bbox.y1 * scaleY;
+      const w = (det.bbox.x2 - det.bbox.x1) * scaleX;
+      const h = (det.bbox.y2 - det.bbox.y1) * scaleY;
+
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.lineWidth = 0.5;
-      ctx.strokeRect(det.box.x, det.box.y, det.box.w, det.box.h);
+      ctx.strokeRect(x, y, w, h);
       
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.font = '8px monospace';
-      ctx.fillText(det.class, det.box.x, det.box.y - 2);
+      ctx.fillText(det.class, x, y - 2);
     });
 
-  }, [detections, persons]);
+  }, [message]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute top-0 left-0 w-full h-full pointer-events-none"
-    />
-  );
+  return <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none" />;
 };

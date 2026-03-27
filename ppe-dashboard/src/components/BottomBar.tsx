@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import type { StreamData, Alert } from '../types';
-import { evaluateCompliance } from '../utils/compliance';
 
 interface BottomBarProps {
   streams: StreamData[];
@@ -11,9 +10,10 @@ export const BottomBar: React.FC<BottomBarProps> = ({ streams, alerts }) => {
   const stats = useMemo(() => {
     let total = 0, compliant = 0;
     streams.forEach(s => {
-      const p = evaluateCompliance(s.detections);
-      total += p.length;
-      compliant += p.filter(x => x.status === 'compliant').length;
+      if (s.backendMessage) {
+        total += s.backendMessage.compliance.length;
+        compliant += s.backendMessage.compliance.filter(c => c.status === 'compliant').length;
+      }
     });
     return { total, compliant, violations: total - compliant };
   }, [streams]);

@@ -1,11 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { OverlayCanvas } from './OverlayCanvas';
-import { evaluateCompliance } from '../utils/compliance';
 import type { StreamData } from '../types';
 
 export const StreamCard: React.FC<{ stream: StreamData }> = ({ stream }) => {
-  const persons = useMemo(() => evaluateCompliance(stream.detections), [stream.detections]);
-
   return (
     <div className="relative border border-gray-800 bg-black flex items-center justify-center overflow-hidden w-full h-full">
       {/* Stream label */}
@@ -20,7 +17,21 @@ export const StreamCard: React.FC<{ stream: StreamData }> = ({ stream }) => {
       <div className="relative w-full h-full flex items-center justify-center">
          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900 to-black opacity-50"></div>
          
-         <OverlayCanvas detections={stream.detections} persons={persons} />
+         {/* Live MJPEG Feed */}
+         <img
+           src={`/api/streams/${stream.id}/feed`}
+           alt={`Stream ${stream.id}`}
+           className="absolute inset-0 w-full h-full object-contain"
+           onError={(e) => {
+             // Hide the broken image icon if stream isn't returning frames yet
+             (e.target as HTMLImageElement).style.opacity = '0';
+           }}
+           onLoad={(e) => {
+             (e.target as HTMLImageElement).style.opacity = '1';
+           }}
+         />
+         
+         <OverlayCanvas message={stream.backendMessage} />
       </div>
     </div>
   );

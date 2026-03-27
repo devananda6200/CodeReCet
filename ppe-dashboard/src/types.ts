@@ -1,57 +1,46 @@
-export type DetectionClass = 'person' | 'helmet' | 'safety_vest';
-
-export interface BoundingBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface Detection {
-  id: string;
-  class: DetectionClass;
+export interface BackendDetection {
+  class: string;
   confidence: number;
-  box: BoundingBox;
+  track_id: number;
+  bbox: { x1: number; y1: number; x2: number; y2: number };
 }
 
-export type PersonStatus =
-  | 'compliant'
-  | 'missing_helmet'
-  | 'missing_vest'
-  | 'missing_both';
-
-export interface PersonRecord {
-  id: string;
-  box: BoundingBox;
-  status: PersonStatus;
-  helmetDetected: boolean;
-  vestDetected: boolean;
+export interface BackendCompliance {
+  track_id: number;
+  status: 'compliant' | 'helmet_missing' | 'vest_missing' | 'both_missing';
+  has_helmet: boolean;
+  has_vest: boolean;
 }
 
-export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
-
-export interface Alert {
-  id: string;
-  streamId: string;
-  timestamp: string;
-  type: PersonStatus;
-  severity: AlertSeverity;
-  personId?: string;
-  resolved: boolean;
+export interface BackendAlert {
+  alert_id: string;
+  track_id: number;
+  violation: string;
 }
 
-export interface SystemMetrics {
-  fps: number;
-  latency: number;
-  cpu: number;
-  ram: number;
-  healthy: boolean;
+export interface BackendSocketMessage {
+  stream_id: string;
+  frame_number: number;
+  timestamp: number;
+  is_inference_frame: boolean;
+  detections: BackendDetection[];
+  compliance: BackendCompliance[];
+  alerts: BackendAlert[];
+  stage_timings_ms: Record<string, number>;
 }
 
 export interface StreamData {
   id: string;
   name: string;
   status: 'active' | 'inactive' | 'error';
-  detections: Detection[];
-  metrics: SystemMetrics;
+  backendMessage?: BackendSocketMessage;
+}
+
+export interface Alert {
+  id: string;
+  streamId: string;
+  timestamp: string;
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  resolved: boolean;
 }

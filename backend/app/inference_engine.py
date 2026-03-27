@@ -77,8 +77,13 @@ class PyTorchBackend(InferenceBackend):
         We call model.predict with the numpy tensor and extract
         the raw boxes output.
         """
+        import torch
+        # Ultralytics treats 4D numpy arrays as images by mistake.
+        # Passing a torch.Tensor bypasses internal image preprocessing.
+        tensor_pt = torch.from_numpy(tensor)
+        
         results = self._model.predict(
-            source=tensor,
+            source=tensor_pt,
             conf=settings.model.confidence_threshold,
             iou=settings.model.nms_iou_threshold,
             verbose=False,

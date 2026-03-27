@@ -1,51 +1,79 @@
 import React, { useState, useEffect } from 'react';
-import { initialStreams, initialAlerts } from '../mock/mockData';
 import { StreamGrid } from './StreamGrid';
 import { BottomBar } from './BottomBar';
-import type { Alert, StreamData } from '../types';
+import type { Alert, StreamData, BackendSocketMessage } from '../types';
 
 export const Dashboard: React.FC = () => {
-  const [streams, setStreams] = useState<StreamData[]>(initialStreams);
-  const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
+  const [streams, setStreams] = useState<StreamData[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [time, setTime] = useState(new Date());
-
+  
+  // Real active streams connection!
   useEffect(() => {
-    // 1. Clock ticks every second
+    // Clock tick
     const clockInterval = setInterval(() => setTime(new Date()), 1000);
 
-    // 2. Detection targets jitter every 800ms to simulate live CCTV
-    const trackingInterval = setInterval(() => {
-      setStreams(prev => prev.map(stream => ({
-        ...stream,
-        detections: stream.detections.map(det => ({
-          ...det,
-          box: {
-            ...det.box,
-            x: det.box.x + (Math.random() * 2 - 1),
-            y: det.box.y + (Math.random() * 2 - 1),
-          }
-        }))
-      })));
+    // WebSocket connection to FastAPI Backend
+    let ws: WebSocket;
+    const connectWS = () => {
+      ws = new WebSocket('ws://localhost:8000/ws/detections');
+      
+      ws.onmessage = (event) => {
+        try {
+          const data: BackendSocketMessage = JSON.parse(event.data);
+          
+          setStreams(prev => {
+            const idx = prev.findIndex(s => s.id === data.stream_id);
+            if (idx !== -1) {
+              const newStreams = [...prev];
+              newStreams[idx] = { ...newStreams[idx], backendMessage: data };
+              return newStreams;
+            } else {
+               // Auto-discover any new YOLO stream dynamically pushed via WS
+               return [...prev, {
+                 id: data.stream_id,
+                 name: data.stream_id.toUpperCase(),
+                 status: 'active',
+                 backendMessage: data
+               }];
+            }
+          });
 
-      // Occasional alert pop-in to populate the Live Logs
-      if (Math.random() > 0.85) {
-        const types: Alert['type'][] = ['missing_helmet', 'missing_vest', 'missing_both'];
-        const randomType = types[Math.floor(Math.random() * types.length)];
-        
-        setAlerts(prev => [{
-          id: `alert_${Date.now()}`,
-          streamId: `CAM_${Math.floor(Math.random() * 4) + 1}`,
-          timestamp: new Date().toISOString(),
-          type: randomType,
-          severity: (randomType === 'missing_both' ? 'critical' : 'medium') as Alert['severity'],
-          resolved: false
-        }, ...prev].slice(0, 5)); // Keep only latest 5 alerts
-      }
-    }, 800);
+          // Intercept alerts dynamically
+          if (data.alerts && data.alerts.length > 0) {
+            setAlerts(prev => {
+               const newAlerts = data.alerts.map(a => ({
+                  id: a.alert_id,
+                  streamId: data.stream_id,
+                  timestamp: new Date(data.timestamp * 1000).toISOString(),
+                  type: a.violation,
+                  severity: 'medium' as any,
+                  resolved: false,
+               }));
+               // Prepend new alerts and filter out duplicate IDs, keep max 5
+               const merged = [...newAlerts, ...prev];
+               const unique = merged.filter((val, index, self) => 
+                  index === self.findIndex((t) => t.id === val.id)
+               );
+               return unique.slice(0, 5);
+            });
+          }
+        } catch (e) {
+          console.error("Malformed websocket response", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.warn("WebSocket disconnected, retrying in 3s...");
+        setTimeout(connectWS, 3000); // rudimentary reconnect logic
+      };
+    };
+
+    connectWS();
 
     return () => {
       clearInterval(clockInterval);
-      clearInterval(trackingInterval);
+      if (ws) ws.close();
     };
   }, []);
 
@@ -70,7 +98,13 @@ export const Dashboard: React.FC = () => {
 
       {/* Main Area - 70vh */}
       <main className="h-[70vh] p-4 shrink-0 flex items-center justify-center overflow-hidden">
-        <StreamGrid streams={streams} />
+        {streams.length === 0 ? (
+          <div className="text-gray-600 font-mono tracking-widest uppercase">
+            Waiting for backend connection... (ws://localhost:8000/ws/detections)
+          </div>
+        ) : (
+          <StreamGrid streams={streams} />
+        )}
       </main>
 
       {/* Bottom Panel - 20vh */}

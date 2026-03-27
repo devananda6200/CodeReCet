@@ -155,6 +155,27 @@ async def remove_stream(stream_id: str):
     return {"status": "removed", "stream_id": stream_id}
 
 
+@router.get("/streams/{stream_id}/feed")
+async def stream_feed(stream_id: str):
+    """MJPEG continuous video feed for a stream."""
+    import asyncio
+    from fastapi.responses import StreamingResponse
+    from fastapi import HTTPException
+
+    pipeline = stream_manager._pipelines.get(stream_id)
+    if not pipeline:
+        raise HTTPException(status_code=404, detail=f"Stream '{stream_id}' not found")
+
+    async def frame_generator():
+        while pipeline.is_running:
+            if getattr(pipeline, "latest_frame_jpg", b""):
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + pipeline.latest_frame_jpg + b'\r\n')
+            await asyncio.sleep(0.05)  # Cap at ~20 FPS
+
+    return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
 # ── Metrics ───────────────────────────────────────────────────────
 
 @router.get("/metrics", response_model=SystemMetricsResponse)

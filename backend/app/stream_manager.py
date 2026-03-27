@@ -77,6 +77,7 @@ class StreamPipeline:
         # Control
         self._running = threading.Event()
         self._frame_skip = settings.pipeline.frame_skip
+        self.latest_frame_jpg = b""
 
     # ── Lifecycle ─────────────────────────────────────────────────
 
@@ -151,6 +152,12 @@ class StreamPipeline:
 
         # 1. Preprocess
         t0 = time.time()
+        
+        # Save exact JPEG clone for MJPEG streaming
+        import cv2
+        _, buffer = cv2.imencode('.jpg', packet.frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        self.latest_frame_jpg = buffer.tobytes()
+
         target_w = self._resolution_tiers[self._current_tier_idx]
         tensor, meta = self._preprocessor.preprocess(
             packet.frame, target_width=target_w
