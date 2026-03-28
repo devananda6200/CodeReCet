@@ -4,8 +4,8 @@
 
 # --- Model & Inference ---
 model:
-  path: "models/yolo11l.pt"          # Path to YOLO model file (.pt / .onnx / .xml)
-  backend: "pytorch"                  # pytorch | onnx | openvino
+  path: "../model output/best_openvino_model/best.xml"          # Path to YOLO model file (.pt / .onnx / .xml)
+  backend: "openvino"                  # pytorch | onnx | openvino
   input_size: 640                     # Model input resolution (square)
   confidence_threshold: 0.45
   nms_iou_threshold: 0.50

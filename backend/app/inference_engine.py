@@ -190,8 +190,7 @@ class OpenVINOBackend(InferenceBackend):
         self._infer_request = self._compiled_model.create_infer_request()
         self._input_layer = self._compiled_model.input(0)
         self._output_layer = self._compiled_model.output(0)
-        logger.info("OpenVINO backend loaded: %s (precision: %s)", 
-                   model_path.parent.name, self._infer_request.infer_new_request.__doc__)
+        logger.info("OpenVINO backend loaded: %s", model_path.parent.name)
 
     def infer(self, tensor: np.ndarray) -> np.ndarray:
         self._infer_request.infer({self._input_layer: tensor})
