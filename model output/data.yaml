@@ -1,0 +1,8 @@
+path: /content/hardhat_vest_dataset
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: helmet
+  1: person
+  2: safety_vest
