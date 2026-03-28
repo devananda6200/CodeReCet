@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import type { BackendSocketMessage } from '../types';
+import type { StreamData } from '../types';
 
 interface OverlayCanvasProps {
-  message?: BackendSocketMessage;
+  stream: StreamData;
 }
 
-export const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ message }) => {
+export const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ stream }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -13,82 +13,65 @@ export const OverlayCanvas: React.FC<OverlayCanvasProps> = ({ message }) => {
     if (!canvas) return;
 
     const parent = canvas.parentElement;
-    if (parent && (canvas.width !== parent.clientWidth || canvas.height !== parent.clientHeight)) {
+    if (parent) {
       canvas.width = parent.clientWidth;
       canvas.height = parent.clientHeight;
     }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!message) return;
+    // The WS message stored in backendMessage has shape:
+    // { id, name, status, detections: [{id, class, confidence, box:{x,y,w,h}}], metrics }
+    const msg = stream.backendMessage as any;
+    if (!msg?.detections?.length) return;
 
-    const { detections, compliance } = message;
+    const detections: Array<{
+      id: string;
+      class: string;
+      confidence: number;
+      box: { x: number; y: number; w: number; h: number };
+    }> = msg.detections;
 
-    const getPersonColor = (status: string) => {
-      switch (status) {
-        case 'compliant': return '#10b981';
-        case 'helmet_missing': return '#ef4444';
-        case 'vest_missing': return '#f97316';
-        case 'both_missing': return '#7f1d1d';
-        default: return '#ffffff';
-      }
-    };
+    // Backend sends absolute pixel coords based on original frame size.
+    // We scale to canvas display size using a reasonable default (640x480).
+    // TODO: backend could send frame_width/frame_height in WS payload for accuracy.
+    const frameW = msg.frame_width ?? 640;
+    const frameH = msg.frame_height ?? 480;
+    const scaleX = canvas.width / frameW;
+    const scaleY = canvas.height / frameH;
 
-    // Calculate dynamic scaling from a standard 640x480 YOLO stream output format to our responsive CSS canvas size.
-    // If backend dynamically sets resolution, this could be refactored, assuming 640x480 for classic YOLO aspect.
-    const scaleX = canvas.width / 640;
-    const scaleY = canvas.height / 480;
+    detections.forEach(det => {
+      const { x, y, w, h } = det.box;
+      const cx = x * scaleX;
+      const cy = y * scaleY;
+      const cw = w * scaleX;
+      const ch = h * scaleY;
 
-    // 1. Draw Persons
-    detections.filter(d => d.class === 'person').forEach(det => {
-      const comp = compliance.find(c => c.track_id === det.track_id);
-      const status = comp ? comp.status : 'unknown';
-      const color = getPersonColor(status);
+      const isPerson = det.class === 'person';
+      const color = isPerson ? '#10b981' : 'rgba(255,255,255,0.5)';
 
-      const x = det.bbox.x1 * scaleX;
-      const y = det.bbox.y1 * scaleY;
-      const w = (det.bbox.x2 - det.bbox.x1) * scaleX;
-      const h = (det.bbox.y2 - det.bbox.y1) * scaleY;
-
-      // Draw box
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, w, h);
+      ctx.lineWidth = isPerson ? 1.5 : 0.8;
+      ctx.strokeRect(cx, cy, cw, ch);
 
-      // Label background
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      const labelText = `[ID:${det.track_id} - ${status.toUpperCase()}]`;
-      
-      ctx.font = '10px monospace';
-      const textWidth = ctx.measureText(labelText).width;
-      
-      ctx.fillRect(x, y - 14, textWidth + 8, 14);
-
-      // Label text
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(labelText, x + 4, y - 4);
+      if (isPerson) {
+        const label = `${det.class} ${Math.round(det.confidence * 100)}%`;
+        ctx.font = '10px monospace';
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(cx, cy - 16, tw + 8, 16);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, cx + 4, cy - 4);
+      }
     });
+  }, [stream.backendMessage]);
 
-    // 2. Draw PPE items faintly
-    detections.filter(d => d.class !== 'person').forEach(det => {
-      const x = det.bbox.x1 * scaleX;
-      const y = det.bbox.y1 * scaleY;
-      const w = (det.bbox.x2 - det.bbox.x1) * scaleX;
-      const h = (det.bbox.y2 - det.bbox.y1) * scaleY;
-
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(x, y, w, h);
-      
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.font = '8px monospace';
-      ctx.fillText(det.class, x, y - 2);
-    });
-
-  }, [message]);
-
-  return <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute top-0 left-0 w-full h-full pointer-events-none"
+    />
+  );
 };
