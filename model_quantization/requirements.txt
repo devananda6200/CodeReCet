@@ -1,0 +1,6 @@
+# Model quantization requirements
+openvino>=2023.0
+nncf>=2.6.0
+pyyaml
+numpy
+opencv-python
