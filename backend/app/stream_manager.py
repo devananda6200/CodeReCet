@@ -276,6 +276,7 @@ class StreamManager:
     def __init__(self) -> None:
         self._pipelines: Dict[str, StreamPipeline] = {}
         self._lock = threading.Lock()
+        self._engine_lock = threading.Lock()  # Separate lock for model init
         self._executor = ThreadPoolExecutor(
             max_workers=settings.streams.max_concurrent,
             thread_name_prefix="stream-pipeline",
@@ -296,7 +297,7 @@ class StreamManager:
         """Lazily load the inference engine on first use (thread-safe)."""
         if self._engine is not None:
             return
-        with self._lock:
+        with self._engine_lock:  # Use dedicated lock so list_streams isn't blocked
             if self._engine is not None:
                 return  # Double-check after acquiring lock
             logger.info("Loading inference engine…")

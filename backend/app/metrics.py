@@ -87,17 +87,20 @@ class MetricsCollector:
 
     # ── Query API (called by routes / WebSocket) ──────────────────
 
+    def _get_fps_unlocked(self, stream_id: str) -> float:
+        """Compute FPS WITHOUT acquiring the lock (must be called while lock is held)."""
+        now = time.time()
+        times = self._frame_times.get(stream_id)
+        if not times:
+            return 0.0
+        cutoff = now - self._fps_window
+        count = sum(1 for t in times if t >= cutoff)
+        return count / self._fps_window if self._fps_window > 0 else 0.0
+
     def get_fps(self, stream_id: str) -> float:
         """Compute current FPS using a sliding time window."""
-        now = time.time()
         with self._lock:
-            times = self._frame_times.get(stream_id)
-            if not times:
-                return 0.0
-            cutoff = now - self._fps_window
-            # Count frames within window
-            count = sum(1 for t in times if t >= cutoff)
-            return count / self._fps_window if self._fps_window > 0 else 0.0
+            return self._get_fps_unlocked(stream_id)
 
     def get_snapshot(self) -> Dict[str, Any]:
         """
@@ -117,7 +120,7 @@ class MetricsCollector:
                 + list(self._frame_times.keys())
             ):
                 per_stream[sid] = {
-                    "fps": round(self.get_fps(sid), 2),
+                    "fps": round(self._get_fps_unlocked(sid), 2),
                     "frames_processed": self._frames_processed.get(sid, 0),
                     "frames_skipped": self._frames_skipped.get(sid, 0),
                     "frames_dropped": self._frames_dropped.get(sid, 0),
@@ -129,7 +132,7 @@ class MetricsCollector:
                 }
 
             total_fps = sum(
-                self.get_fps(sid) for sid in self._frame_times
+                self._get_fps_unlocked(sid) for sid in self._frame_times
             )
 
             return {

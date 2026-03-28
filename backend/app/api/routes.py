@@ -92,17 +92,17 @@ async def health():
 @router.get("/streams", response_model=List[StreamDataResponse])
 async def list_streams():
     """List all active streams and their status."""
-    infos = stream_manager.list_streams()
-    metrics_snap = metrics_collector.get_snapshot()
+    infos = await asyncio.to_thread(stream_manager.list_streams)
+    metrics_snap = await asyncio.to_thread(metrics_collector.get_snapshot)
     
     result = []
     for info in infos:
-        stream_metrics = metrics_snap.per_stream.get(info.stream_id, {})
+        stream_metrics = metrics_snap.get("per_stream", {}).get(info.stream_id, {})
         sys_metrics = SystemMetricsResponse(
             fps=round(stream_metrics.get("fps", 0.0), 1),
-            latency=round(stream_metrics.get("latency_ms", 0.0), 1), 
-            cpu=round(metrics_snap.cpu_percent, 1),
-            ram=round(metrics_snap.ram_mb, 1),
+            latency=round(stream_metrics.get("latency_ms", 0.0), 1),
+            cpu=round(metrics_snap.get("cpu_percent", 0.0), 1),
+            ram=round(metrics_snap.get("ram_mb", 0.0), 1),
             healthy=info.state.value == "running"
         )
         
@@ -129,7 +129,9 @@ async def list_streams():
 async def add_stream(req: AddStreamRequest):
     """Add a new video stream to the pipeline."""
     try:
-        info = stream_manager.add_stream(req.stream_id, req.source, req.name or "")
+        info = await asyncio.to_thread(
+            stream_manager.add_stream, req.stream_id, req.source, req.name or ""
+        )
         return StreamDataResponse(
             id=info.stream_id,
             name=info.name or info.stream_id,
