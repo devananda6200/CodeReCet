@@ -29,6 +29,9 @@ class ModelConfig(BaseModel):
     confidence_threshold: float = 0.45
     nms_iou_threshold: float = 0.50
     half_precision: bool = False
+    # OpenVINO quantized models
+    openvino_fp32_path: str = "model_quantization/artifacts/openvino_fp32/best_openvino_model/best.xml"
+    openvino_int8_path: str = "model_quantization/artifacts/openvino_int8/best.xml"
 
 
 class StreamsConfig(BaseModel):

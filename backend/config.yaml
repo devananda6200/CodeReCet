@@ -10,6 +10,10 @@ model:
   confidence_threshold: 0.45
   nms_iou_threshold: 0.50
   half_precision: false               # Not used on CPU, placeholder
+  
+  # OpenVINO model paths (for when backend is 'openvino')
+  openvino_fp32_path: "model_quantization/artifacts/openvino_fp32/best_openvino_model/best.xml"
+  openvino_int8_path: "model_quantization/artifacts/openvino_int8/best.xml"
 
 # --- Class Mapping ---
 # Map model output indices to class names

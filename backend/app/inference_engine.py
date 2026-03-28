@@ -163,10 +163,22 @@ class OpenVINOBackend(InferenceBackend):
         self._output_layer: Any = None
 
     def load(self, model_path: str) -> None:
-        from openvino.runtime import Core
-
-        core = Core()
-        model = core.read_model(model_path)
+        import openvino as ov
+        from pathlib import Path
+        
+        model_path = Path(model_path) if not isinstance(model_path, Path) else model_path
+        
+        # Handle directory paths by looking for best.xml or model.xml
+        if model_path.is_dir():
+            xml_candidates = list(model_path.glob("*.xml"))
+            if xml_candidates:
+                model_path = xml_candidates[0]
+            else:
+                raise FileNotFoundError(f"No .xml model file found in {model_path}")
+        
+        # Load model using OpenVINO API
+        core = ov.Core()
+        model = core.read_model(str(model_path))
         self._compiled_model = core.compile_model(
             model,
             device_name="CPU",
@@ -178,7 +190,8 @@ class OpenVINOBackend(InferenceBackend):
         self._infer_request = self._compiled_model.create_infer_request()
         self._input_layer = self._compiled_model.input(0)
         self._output_layer = self._compiled_model.output(0)
-        logger.info("OpenVINO backend loaded: %s", model_path)
+        logger.info("OpenVINO backend loaded: %s (precision: %s)", 
+                   model_path.parent.name, self._infer_request.infer_new_request.__doc__)
 
     def infer(self, tensor: np.ndarray) -> np.ndarray:
         self._infer_request.infer({self._input_layer: tensor})
