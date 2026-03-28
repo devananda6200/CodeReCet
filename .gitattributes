@@ -1,2 +1,5 @@
+model[[:space:]]output/*.onnx filter=lfs diff=lfs merge=lfs -text
+model[[:space:]]output/*.zip filter=lfs diff=lfs merge=lfs -text
+model[[:space:]]output/*.pt filter=lfs diff=lfs merge=lfs -text
 *.onnx filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text
