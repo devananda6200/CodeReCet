@@ -162,6 +162,7 @@ class StreamPipeline:
         tensor, meta = self._preprocessor.preprocess(
             packet.frame, target_width=target_w
         )
+        packet.current_size = (meta["orig_h"], meta["orig_w"])
         t_preprocess = time.time() - t0
         metrics_collector.record_stage_latency(self.stream_id, "preprocess", t_preprocess)
         packet.stage_timings["preprocess"] = t_preprocess

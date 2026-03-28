@@ -1,79 +1,53 @@
-# ============================================================
-# PPE Compliance Detection — Runtime Configuration
-# ============================================================
-
-# --- Model & Inference ---
 model:
-  path: "../model output/best_openvino_model/best.xml"          # Path to YOLO model file (.pt / .onnx / .xml)
-  backend: "openvino"                  # pytorch | onnx | openvino
-  input_size: 640                     # Model input resolution (square)
+  path: ../model output/best_openvino_model/best.xml
+  backend: openvino
+  input_size: 640
   confidence_threshold: 0.45
-  nms_iou_threshold: 0.50
-  half_precision: false               # Not used on CPU, placeholder
-  
-  # OpenVINO model paths (for when backend is 'openvino')
-  openvino_fp32_path: "model_quantization/artifacts/openvino_fp32/best_openvino_model/best.xml"
-  openvino_int8_path: "model_quantization/artifacts/openvino_int8/best.xml"
-
-# --- Class Mapping ---
-# Map model output indices to class names
+  nms_iou_threshold: 0.5
+  half_precision: false
+  openvino_fp32_path: model_quantization/artifacts/openvino_fp32/best_openvino_model/best.xml
+  openvino_int8_path: model_quantization/artifacts/openvino_int8/best.xml
 classes:
-  0: "person"
-  1: "helmet"
-  2: "safety_vest"
-
-# --- Stream Settings ---
+  0: helmet
+  1: person
+  2: safety_vest
 streams:
   max_concurrent: 4
-  queue_size: 5                       # Bounded queue per stream (frames)
+  queue_size: 5
   reconnect_delay_sec: 5.0
   reconnect_max_retries: 10
-
-# --- Frame Skipping & Tracking ---
 pipeline:
-  frame_skip: 3                       # Full inference every N-th frame
-  tracker_max_disappeared: 15         # Frames before dropping a track
-  tracker_iou_threshold: 0.30         # Min IoU to match detection to track
-  anti_flicker_min_hits: 3            # Min consecutive detections to emit
-  tracker_velocity_smoothing: 0.5     # EMA factor for velocity estimation
-
-# --- Adaptive Resolution ---
+  frame_skip: 3
+  tracker_max_disappeared: 15
+  tracker_iou_threshold: 0.3
+  anti_flicker_min_hits: 3
+  tracker_velocity_smoothing: 0.5
 resolution:
   tiers:
-    - 1920    # 1080p width
-    - 1280    # 720p
-    - 854     # 480p
-    - 640     # fallback
-  fps_low_threshold: 8.0              # Drop resolution if FPS below this
-  fps_high_threshold: 14.0            # Restore resolution if FPS above this
-  eval_window_sec: 3.0                # Seconds to average FPS over
-
-# --- Compliance Logic ---
+  - 1920
+  - 1280
+  - 854
+  - 640
+  fps_low_threshold: 8.0
+  fps_high_threshold: 14.0
+  eval_window_sec: 3.0
 compliance:
-  head_region_ratio: 0.30             # Top 30% of person bbox = head
-  torso_region_top: 0.25              # Torso starts at 25% from top
-  torso_region_bottom: 0.65           # Torso ends at 65% from top
-  overlap_iou_threshold: 0.15         # Min IoU to associate PPE with region
-
-# --- Alerts ---
+  head_region_ratio: 0.3
+  torso_region_top: 0.25
+  torso_region_bottom: 0.65
+  overlap_iou_threshold: 0.15
 alerts:
-  cooldown_sec: 10.0                  # Don't re-alert same track+violation within this window
-  max_history: 500                    # Max stored alert records
-  latency_target_ms: 300              # Target alert latency
-
-# --- Metrics ---
+  cooldown_sec: 10.0
+  max_history: 500
+  latency_target_ms: 300
 metrics:
   collection_interval_sec: 1.0
-  fps_window_sec: 5.0                 # Sliding window for FPS calculation
-
-# --- Server ---
+  fps_window_sec: 5.0
 server:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8000
   cors_origins:
-    - "*"
-
-# --- Resource Limits ---
+  - '*'
 resources:
   max_cpu_cores: 8
   onnx_inter_threads: 2

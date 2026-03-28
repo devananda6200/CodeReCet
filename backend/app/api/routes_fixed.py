@@ -183,12 +183,12 @@ async def stream_feed(stream_id: str):
 @router.get("/metrics", response_model=SystemMetricsResponse)
 async def get_metrics():
     """Return current performance metrics."""
-    metrics_snap = await asyncio.to_thread(metrics_collector.get_snapshot)
+    metrics_snap = metrics_collector.get_snapshot()
     return SystemMetricsResponse(
-        fps=round(metrics_snap.get("total_fps", 0.0), 1),
+        fps=metrics_snap.get(" total_fps\, 0.0),
         latency=0.0,
-        cpu=round(metrics_snap.get("cpu_percent", 0.0), 1),
-        ram=round(metrics_snap.get("ram_mb", 0.0), 1),
+        cpu=metrics_snap.get(\cpu_percent\, 0.0),
+        ram=metrics_snap.get(\ram_mb\, 0.0),
         healthy=True
     )
 
@@ -266,8 +266,8 @@ def _frame_result_callback(packet: FramePacket) -> None:
         "id": packet.stream_id,
         "name": stream_name,
         "status": "active",
-        "frame_width": int(packet.current_size[1]),
-        "frame_height": int(packet.current_size[0]),
+        "frame_width": packet.current_size[1],
+        "frame_height": packet.current_size[0],
         "detections": detections_payload,
         "metrics": metrics_payload
     }
