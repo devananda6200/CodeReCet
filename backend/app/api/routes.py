@@ -234,13 +234,13 @@ def _frame_result_callback(packet: FramePacket) -> None:
         return
 
     sys_metrics = metrics_collector.get_snapshot()
-    stream_metrics = sys_metrics.per_stream.get(packet.stream_id, {})
+    stream_metrics = sys_metrics.get("per_stream", {}).get(packet.stream_id, {})
     
     metrics_payload = {
         "fps": round(stream_metrics.get("fps", 0.0), 1),
         "latency": round(sum(packet.stage_timings.values()) * 1000, 1),
-        "cpu": round(sys_metrics.cpu_percent, 1),
-        "ram": round(sys_metrics.ram_mb, 1),
+        "cpu": round(sys_metrics.get("cpu_percent", 0.0), 1),
+        "ram": round(sys_metrics.get("ram_mb", 0.0), 1),
         "healthy": True
     }
     
