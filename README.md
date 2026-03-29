@@ -31,9 +31,9 @@ To make the solution practical for industrial environments, we combine:
 
 ---
 
-## V2 Implementation Snapshot
+## Implementation Snapshot
 
-The V2 codebase is a full-stack monorepo under `V2/` with:
+The current codebase is a full-stack monorepo with:
 
 - FastAPI backend for streams, alerts, zones, runtime config, metrics, and health
 - CPU-first streaming pipeline with YOLO inference and deterministic fallback mode
@@ -46,9 +46,8 @@ The V2 codebase is a full-stack monorepo under `V2/` with:
 ```text
 arakkunnam-99/
   README.md
-  V2/
-    docker-compose.yml
-    backend/
+  docker-compose.yml
+  backend/
       .env.example
       app/
         api/routes/
@@ -64,20 +63,20 @@ arakkunnam-99/
       tests/
       Dockerfile
       requirements.txt
-    frontend/
-      .env.example
-      src/
-        components/
-        hooks/
-        pages/
-        services/
-        types/
-        utils/
-      Dockerfile
-      package.json
+  frontend/
+    .env.example
+    src/
+      components/
+      hooks/
+      pages/
+      services/
+      types/
+      utils/
+    Dockerfile
+    package.json
 ```
 
-## Runtime Architecture (V2)
+## Runtime Architecture
 
 1. Stream intake: webcam/file/RTSP/HTTP-MJPEG/demo sources
 2. Frame pipeline: decode and process frames per stream
@@ -86,7 +85,7 @@ arakkunnam-99/
 5. Stores and APIs: alerts/config/zones persisted and served over REST/WebSocket
 6. Frontend dashboard: live stream cards, controls, timeline alerts, metrics
 
-## Quick Start (V2)
+## Quick Start
 
 ### Prerequisites
 
@@ -98,7 +97,7 @@ arakkunnam-99/
 ### Backend (Windows PowerShell)
 
 ```powershell
-cd V2/backend
+cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -109,7 +108,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### Frontend (Windows PowerShell)
 
 ```powershell
-cd V2/frontend
+cd frontend
 npm install
 copy .env.example .env
 npm run dev
@@ -118,19 +117,18 @@ npm run dev
 Frontend: `http://localhost:5173`
 Backend docs: `http://localhost:8000/docs`
 
-### Docker Compose (from `V2/`)
+### Docker Compose
 
 ```powershell
-cd V2
 docker compose up --build
 ```
 
 Frontend: `http://localhost:8080`  
 Backend: `http://localhost:8000`
 
-## Environment Variables (V2)
+## Environment Variables
 
-Backend env file: `V2/backend/.env.example` (prefix `OPS_`)
+Backend env file: `backend/.env.example` (prefix `OPS_`)
 
 Common backend keys:
 
@@ -143,7 +141,7 @@ Common backend keys:
 - `OPS_DEMO_MODE`
 - `OPS_DEMO_SEED_STREAMS`
 
-Frontend env file: `V2/frontend/.env.example`
+Frontend env file: `frontend/.env.example`
 
 Common frontend keys:
 
@@ -152,7 +150,7 @@ Common frontend keys:
 - `VITE_ALERT_WS_URL`
 - `VITE_METRICS_WS_URL`
 
-## API Reference (V2)
+## API Reference
 
 ### REST Endpoints
 
@@ -180,7 +178,7 @@ Common frontend keys:
 - `WS /ws/alerts`
 - `WS /ws/metrics`
 
-## Useful Commands (V2)
+## Useful Commands
 
 ### Add demo stream
 
@@ -216,30 +214,30 @@ curl -X POST http://localhost:8000/zones/demo-stream-id `
 
 ## Model and Demo Notes
 
-- Place the trained checkpoint at `V2/backend/models/best.pt` (or set `OPS_MODEL_PATH`)
+- Place the trained checkpoint at `backend/models/best.pt` (or set `OPS_MODEL_PATH`)
 - If model/runtime is unavailable, backend can continue in deterministic fallback mode for UI demos
 - Demo streams are controlled by `OPS_DEMO_MODE` and `OPS_DEMO_SEED_STREAMS`
 
-## Phase 3 Scripts (V2)
+## Phase 3 Scripts
 
 ### Export ONNX and optional INT8 ONNX
 
 ```powershell
-cd V2/backend
+cd backend
 python scripts/export_model.py --model models/best.pt --onnx --quantize-onnx-int8 --output-dir models/exports
 ```
 
 ### Export OpenVINO
 
 ```powershell
-cd V2/backend
+cd backend
 python scripts/export_model.py --model models/best.pt --openvino --output-dir models/exports
 ```
 
 ### Benchmark variants
 
 ```powershell
-cd V2/backend
+cd backend
 python scripts/benchmark_backends.py `
   --baseline models/best.pt `
   --onnx models/exports/best.onnx `
