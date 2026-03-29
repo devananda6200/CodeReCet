@@ -31,206 +31,229 @@ To make the solution practical for industrial environments, we combine:
 
 ---
 
-## Architecture
+## V2 Implementation Snapshot
 
-```
-┌─────────────┐
-│  Video      │  webcam / file / RTSP   (up to 4 streams)
-│  Sources    │
-└─────┬───────┘
-      │
-┌─────▼───────┐   Bounded queue (5 frames), drop-oldest on overflow
-│  Decoder    │   Threaded per-stream via OpenCV VideoCapture
-└─────┬───────┘
-      │
-┌─────▼───────┐   Letterbox resize, BGR→RGB, float32 normalize
-│ Preprocessor│   Reusable numpy buffers
-└─────┬───────┘
-      │
-      ├─── Inference frame? ──► YES ──┐
-      │                                │
-      │                         ┌──────▼──────┐
-      │                         │  Inference   │  PyTorch / ONNX / OpenVINO
-      │                         │  Engine      │  (pluggable via config)
-      │                         └──────┬───────┘
-      │                                │
-      │                         ┌──────▼──────┐
-      │                         │ Postprocessor│  NMS + coord rescaling
-      │                         └──────┬───────┘
-      │                                │
-      └─── NO (skipped frame) ─► ┌─────▼──────┐
-                                 │  Tracker    │  IoU + Hungarian matching
-                                 │  (predict)  │  Anti-flicker (≥3 hits)
-                                 └─────┬───────┘
-                                       │
-                                ┌──────▼───────┐
-                                │  Compliance  │  Head/torso region matching
-                                │  Checker     │  → compliant / missing PPE
-                                └──────┬───────┘
-                                       │
-                                ┌──────▼───────┐
-                                │  Alert       │  Cooldown dedup per track
-                                │  Manager     │  < 300ms latency target
-                                └──────┬───────┘
-                                       │
-                            ┌──────────▼──────────┐
-                            │  FastAPI Server      │
-                            │  REST + WebSocket    │
-                            └──────────────────────┘
+The V2 codebase is a full-stack monorepo under `V2/` with:
+
+- FastAPI backend for streams, alerts, zones, runtime config, metrics, and health
+- CPU-first streaming pipeline with YOLO inference and deterministic fallback mode
+- Rule engine for PPE compliance, no-go zone violations, and proximity checks
+- React + Vite + TypeScript dashboard for live operations and controls
+- Dockerized backend + frontend with a compose workflow
+
+## Repository Layout (Current)
+
+```text
+arakkunnam-99/
+  README.md
+  V2/
+    docker-compose.yml
+    backend/
+      .env.example
+      app/
+        api/routes/
+        core/
+        models/
+        pipeline/
+        safety/
+        services/
+        tracking/
+        utils/
+        main.py
+      scripts/
+      tests/
+      Dockerfile
+      requirements.txt
+    frontend/
+      .env.example
+      src/
+        components/
+        hooks/
+        pages/
+        services/
+        types/
+        utils/
+      Dockerfile
+      package.json
 ```
 
-## Quick Start
+## Runtime Architecture (V2)
+
+1. Stream intake: webcam/file/RTSP/HTTP-MJPEG/demo sources
+2. Frame pipeline: decode and process frames per stream
+3. Inference: model loaded via service layer (CPU-first)
+4. Safety engine: PPE, zone, and proximity rules
+5. Stores and APIs: alerts/config/zones persisted and served over REST/WebSocket
+6. Frontend dashboard: live stream cards, controls, timeline alerts, metrics
+
+## Quick Start (V2)
 
 ### Prerequisites
+
 - Python 3.10+
-- A YOLO11 model file (`.pt`, `.onnx`, or OpenVINO IR) trained on PPE classes
+- Node.js 18+
+- npm 9+
+- Optional: Docker Desktop
 
-### Installation
+### Backend (Windows PowerShell)
 
-```bash
-# Clone and enter the project
-cd arakkunnam-99
-
-# Create virtual environment
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Linux/macOS
-
-# Install dependencies
+```powershell
+cd V2/backend
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Configuration
+### Frontend (Windows PowerShell)
 
-Edit `config.yaml` to set your model path and preferred backend:
-
-```yaml
-model:
-  path: "models/yolo11l.pt"     # Your model file
-  backend: "pytorch"             # pytorch | onnx | openvino
-  confidence_threshold: 0.45
+```powershell
+cd V2/frontend
+npm install
+copy .env.example .env
+npm run dev
 ```
 
-You can also override via environment variables:
-```bash
-set PPE_MODEL_PATH=models/best.onnx
-set PPE_INFERENCE_BACKEND=onnx
+Frontend: `http://localhost:5173`
+Backend docs: `http://localhost:8000/docs`
+
+### Docker Compose (from `V2/`)
+
+```powershell
+cd V2
+docker compose up --build
 ```
 
-### Running the Server
+Frontend: `http://localhost:8080`  
+Backend: `http://localhost:8000`
 
-```bash
-# Option 1: Direct python
-python -m app.main
+## Environment Variables (V2)
 
-# Option 2: uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+Backend env file: `V2/backend/.env.example` (prefix `OPS_`)
 
-The server starts, loads the model, and waits for streams to be added.
+Common backend keys:
 
----
+- `OPS_MODEL_PATH`
+- `OPS_DEFAULT_BACKEND`
+- `OPS_DEFAULT_CPU_THREADS`
+- `OPS_DEFAULT_FRAME_SKIP`
+- `OPS_ALERT_PERSISTENCE_FRAMES`
+- `OPS_ADAPTIVE_RESOLUTION`
+- `OPS_DEMO_MODE`
+- `OPS_DEMO_SEED_STREAMS`
 
-## API Reference
+Frontend env file: `V2/frontend/.env.example`
+
+Common frontend keys:
+
+- `VITE_API_BASE_URL`
+- `VITE_STREAM_WS_URL`
+- `VITE_ALERT_WS_URL`
+- `VITE_METRICS_WS_URL`
+
+## API Reference (V2)
 
 ### REST Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/streams` | List active streams |
-| `POST` | `/api/streams` | Add a stream |
-| `DELETE` | `/api/streams/{id}` | Remove a stream |
-| `GET` | `/api/metrics` | Performance metrics |
-| `GET` | `/api/alerts` | Recent alerts |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/` | Basic API status message |
+| `GET` | `/health` | Health and system snapshot |
+| `GET` | `/config` | Read runtime config |
+| `POST` | `/config` | Update runtime config |
+| `GET` | `/metrics/summary` | Aggregate pipeline metrics |
+| `POST` | `/streams/add` | Add a stream by source type |
+| `POST` | `/streams/upload` | Upload a video and create stream |
+| `POST` | `/streams/{stream_id}/start` | Start stream processing |
+| `POST` | `/streams/{stream_id}/stop` | Stop stream processing |
+| `GET` | `/streams` | List streams |
+| `GET` | `/streams/{stream_id}/metrics` | Stream-level metrics |
+| `GET` | `/streams/{stream_id}/frame` | Latest JPEG frame |
+| `GET` | `/alerts` | Recent alerts |
+| `POST` | `/zones/{stream_id}` | Save a polygon zone |
+| `GET` | `/zones/{stream_id}` | Get polygon zone |
 
-### Add a Stream
+### WebSocket Endpoints
 
-```bash
-curl -X POST http://localhost:8000/api/streams \
-  -H "Content-Type: application/json" \
-  -d '{"stream_id": "cam1", "source": "0"}'          # webcam
+- `WS /ws/streams`
+- `WS /ws/alerts`
+- `WS /ws/metrics`
 
-curl -X POST http://localhost:8000/api/streams \
-  -H "Content-Type: application/json" \
-  -d '{"stream_id": "vid1", "source": "test_video.mp4"}'  # file
+## Useful Commands (V2)
 
-curl -X POST http://localhost:8000/api/streams \
-  -H "Content-Type: application/json" \
-  -d '{"stream_id": "rtsp1", "source": "rtsp://192.168.1.10:554/stream"}'
+### Add demo stream
+
+```powershell
+curl -X POST http://localhost:8000/streams/add `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"Demo Camera\",\"source_type\":\"demo\"}"
 ```
 
-### WebSocket — Live Detections
+### Add RTSP stream
 
-Connect to `ws://localhost:8000/ws/detections` to receive per-frame JSON:
-
-```json
-{
-  "stream_id": "cam1",
-  "frame_number": 42,
-  "timestamp": 1711567890.123,
-  "is_inference_frame": true,
-  "detections": [
-    {"class": "person", "confidence": 0.92, "track_id": 1,
-     "bbox": {"x1": 100, "y1": 50, "x2": 300, "y2": 400}}
-  ],
-  "compliance": [
-    {"track_id": 1, "status": "helmet_missing",
-     "has_helmet": false, "has_vest": true}
-  ],
-  "alerts": [
-    {"alert_id": "a1b2c3", "track_id": 1, "violation": "helmet_missing"}
-  ],
-  "stage_timings_ms": {
-    "preprocess": 2.1, "inference": 85.3,
-    "postprocess": 1.2, "tracking": 0.5,
-    "compliance": 0.1, "alerts": 0.05
-  }
-}
+```powershell
+curl -X POST http://localhost:8000/streams/add `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"Dock Camera\",\"source_type\":\"rtsp\",\"source_uri\":\"rtsp://user:pass@host/stream\"}"
 ```
 
----
+### Update runtime config
 
-## Project Structure
-
-```
-app/
-├── __init__.py
-├── main.py               # FastAPI entrypoint + lifespan
-├── config.py              # Pydantic config from config.yaml
-├── models.py              # Shared data models
-├── decoder.py             # Threaded frame capture
-├── preprocessor.py        # Letterbox + normalize
-├── inference_engine.py    # PyTorch / ONNX / OpenVINO backends
-├── postprocessor.py       # NMS + detection parsing
-├── tracker.py             # IoU tracker with anti-flicker
-├── compliance_checker.py  # Spatial PPE compliance
-├── alert_manager.py       # Alert generation + cooldown
-├── metrics.py             # Performance metrics collector
-├── stream_manager.py      # Multi-stream orchestrator
-└── api/
-    ├── __init__.py
-    └── routes.py          # REST + WebSocket endpoints
-config.yaml                # Runtime configuration
-requirements.txt           # Python dependencies
+```powershell
+curl -X POST http://localhost:8000/config `
+  -H "Content-Type: application/json" `
+  -d "{\"backend\":\"onnxruntime\",\"cpu_threads\":8,\"frame_skip_rate\":3,\"adaptive_resolution\":true}"
 ```
 
-## Optimization Features
+### Save no-go polygon
 
-| Feature | Details |
-|---------|---------|
-| **Frame skipping** | Full inference every N-th frame (default: 3); tracker predicts on skipped frames |
-| **Adaptive resolution** | Auto-downgrades 1080p → 720p → 480p when FPS drops below threshold |
-| **Bounded queues** | Max 5 frames buffered per stream; oldest dropped on overflow |
-| **Inference backends** | Switch between PyTorch → ONNX → OpenVINO via config for CPU optimization |
-| **Anti-flicker** | Detections must persist ≥ 3 frames before being emitted |
-| **Thread affinity** | ONNX/OpenVINO thread count configurable for CPU core budget |
+```powershell
+curl -X POST http://localhost:8000/zones/demo-stream-id `
+  -H "Content-Type: application/json" `
+  -d "{\"name\":\"Forklift Lane\",\"points\":[{\"x\":140,\"y\":120},{\"x\":540,\"y\":160},{\"x\":620,\"y\":420},{\"x\":120,\"y\":460}]}"
+```
 
-## Performance Targets
+## Model and Demo Notes
+
+- Place the trained checkpoint at `V2/backend/models/best.pt` (or set `OPS_MODEL_PATH`)
+- If model/runtime is unavailable, backend can continue in deterministic fallback mode for UI demos
+- Demo streams are controlled by `OPS_DEMO_MODE` and `OPS_DEMO_SEED_STREAMS`
+
+## Phase 3 Scripts (V2)
+
+### Export ONNX and optional INT8 ONNX
+
+```powershell
+cd V2/backend
+python scripts/export_model.py --model models/best.pt --onnx --quantize-onnx-int8 --output-dir models/exports
+```
+
+### Export OpenVINO
+
+```powershell
+cd V2/backend
+python scripts/export_model.py --model models/best.pt --openvino --output-dir models/exports
+```
+
+### Benchmark variants
+
+```powershell
+cd V2/backend
+python scripts/benchmark_backends.py `
+  --baseline models/best.pt `
+  --onnx models/exports/best.onnx `
+  --quantized-onnx models/exports/best.int8.onnx `
+  --openvino models/exports/best_openvino_model `
+  --sample data/uploads/demo.mp4 `
+  --threads 8
+```
+
+## Current Performance Targets
 
 | Metric | Target |
 |--------|--------|
-| Effective detection rate | ≥ 10 FPS |
+| Effective detection rate | >= 10 FPS |
 | Max CPU cores | 8 |
 | Concurrent streams | 4 |
 | RAM usage | < 4 GB |
