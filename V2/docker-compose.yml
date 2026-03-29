@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: ops-safety-backend
+    env_file:
+      - ./backend/.env.example
+    volumes:
+      - ./backend/data:/app/backend/data
+      - ./backend/models:/app/backend/models
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+        VITE_STREAM_WS_URL: ws://localhost:8000/ws/streams
+        VITE_ALERT_WS_URL: ws://localhost:8000/ws/alerts
+        VITE_METRICS_WS_URL: ws://localhost:8000/ws/metrics
+    container_name: ops-safety-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
