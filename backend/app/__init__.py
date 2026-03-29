@@ -1,1 +1,0 @@
-# PPE Compliance Detection Backend
