@@ -2,6 +2,8 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+ENV NODE_ENV=development
+
 ARG VITE_API_BASE_URL=http://localhost:8000
 ARG VITE_STREAM_WS_URL=ws://localhost:8000/ws/streams
 ARG VITE_ALERT_WS_URL=ws://localhost:8000/ws/alerts
@@ -12,8 +14,8 @@ ENV VITE_STREAM_WS_URL=$VITE_STREAM_WS_URL
 ENV VITE_ALERT_WS_URL=$VITE_ALERT_WS_URL
 ENV VITE_METRICS_WS_URL=$VITE_METRICS_WS_URL
 
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev
 
 COPY . .
 RUN npm run build
