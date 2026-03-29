@@ -47,6 +47,10 @@ class ModelService:
                 verbose=False,
             )
             detections = self._parse_results(results)
+            detections = [
+                detection.model_copy(update={"class_name": self._apply_label_remap(detection.class_name, config)})
+                for detection in detections
+            ]
             latency_ms = (perf_counter() - started) * 1000
             return detections, latency_ms, self._runtime_mode
         except Exception as exc:  # pragma: no cover - depends on local runtime
@@ -79,7 +83,6 @@ class ModelService:
                 from ultralytics import YOLO
 
                 torch.set_num_threads(config.cpu_threads)
-                # Keep non-torch backends constrained on CPU thread pressure as well.
                 os.environ["OMP_NUM_THREADS"] = str(config.cpu_threads)
                 os.environ["OPENBLAS_NUM_THREADS"] = str(config.cpu_threads)
                 self._model = YOLO(str(runtime_artifact))
@@ -152,16 +155,34 @@ class ModelService:
             )
         return parsed
 
+    def _apply_label_remap(self, class_name: str, config: RuntimeConfig) -> str:
+        if not config.label_remap:
+            return class_name
+
+        normalized_map = {
+            key.strip().lower().replace("-", "_").replace(" ", "_"): value.strip().lower().replace("-", "_").replace(" ", "_")
+            for key, value in config.label_remap.items()
+            if key and value
+        }
+        return normalized_map.get(class_name, class_name)
+
     @staticmethod
     def _normalize_class_name(class_name: str) -> str:
         normalized = class_name.strip().lower().replace("-", "_").replace(" ", "_")
         aliases = {
-            "persons": "persons",
-            "person": "persons",
-            "helmets": "helmets",
-            "helmet": "helmets",
-            "vests": "vests",
-            "vest": "vests",
+            "persons": "person",
+            "person": "person",
+            "worker": "person",
+            "workers": "person",
+            "helmets": "helmet",
+            "helmet": "helmet",
+            "hardhat": "helmet",
+            "hard_hat": "helmet",
+            "vests": "safety_vest",
+            "vest": "safety_vest",
+            "ppe_vest": "safety_vest",
+            "safety_vest": "safety_vest",
+            "jacket": "safety_vest",
         }
         return aliases.get(normalized, normalized)
 
@@ -172,32 +193,24 @@ class ModelService:
         stream_seed: int,
     ) -> list[DetectionRecord]:
         height, width = frame.shape[:2]
-        cycle = (frame_index + stream_seed) % 12
-        person_x = 80 + ((frame_index * 13) % max(width - 220, 120))
+        available_span = max(width - 260, 1)
+        person_x = 80 + (abs(stream_seed) % min(available_span, 240))
         person_box = (float(person_x), float(height * 0.28), float(person_x + 120), float(height * 0.84))
         machine_box = (float(width * 0.68), float(height * 0.32), float(width * 0.92), float(height * 0.82))
 
         detections = [
             DetectionRecord(class_name="person", confidence=0.92, bbox=person_box),
             DetectionRecord(class_name="machine", confidence=0.88, bbox=machine_box),
+            DetectionRecord(
+                class_name="helmet",
+                confidence=0.86,
+                bbox=(person_box[0] + 18, person_box[1] - 10, person_box[0] + 102, person_box[1] + 62),
+            ),
+            DetectionRecord(
+                class_name="safety_vest",
+                confidence=0.84,
+                bbox=(person_box[0] + 10, person_box[1] + 120, person_box[2] - 10, person_box[1] + 280),
+            ),
         ]
-
-        if cycle not in {4, 5, 6}:
-            detections.append(
-                DetectionRecord(
-                    class_name="helmet",
-                    confidence=0.86,
-                    bbox=(person_box[0] + 18, person_box[1] - 10, person_box[0] + 102, person_box[1] + 62),
-                )
-            )
-
-        if cycle not in {7, 8, 9}:
-            detections.append(
-                DetectionRecord(
-                    class_name="vest",
-                    confidence=0.84,
-                    bbox=(person_box[0] + 10, person_box[1] + 120, person_box[2] - 10, person_box[1] + 280),
-                )
-            )
 
         return detections

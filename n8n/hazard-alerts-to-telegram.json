@@ -1,0 +1,138 @@
+{
+  "name": "Hazard Alerts to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "c8f8c0dd-9d67-4f98-a2ac-2b2d3f70e9d1",
+      "name": "Every 1 Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:8000/alerts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "50"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "0d2f0aa0-6890-4d56-9035-c4c0f0dc58a4",
+      "name": "Fetch Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const state = $getWorkflowStaticData('global');\nstate.sentAlertIds = state.sentAlertIds || {};\n\nconst payload = items[0]?.json || {};\nconst alerts = Array.isArray(payload.items) ? payload.items : [];\n\nconst newAlerts = [];\nfor (const alert of alerts) {\n  if (!alert?.id) continue;\n  if (state.sentAlertIds[alert.id]) continue;\n\n  state.sentAlertIds[alert.id] = Date.now();\n\n  const createdAt = alert.created_at || 'unknown_time';\n  const severity = (alert.severity || 'medium').toUpperCase();\n  const confidence = typeof alert.confidence === 'number'\n    ? `${(alert.confidence * 100).toFixed(1)}%`\n    : 'N/A';\n\n  const message = [\n    `Hazard detected`,\n    `Stream: ${alert.stream_name || alert.stream_id || 'unknown_stream'}`,\n    `Type: ${alert.type || 'unknown_type'}`,\n    `Severity: ${severity}`,\n    `Confidence: ${confidence}`,\n    `Status: ${alert.status_label || 'unknown_status'}`,\n    `Details: ${alert.details || 'No details provided'}`,\n    `Time: ${createdAt}`\n  ].join('\\n');\n\n  newAlerts.push({\n    json: {\n      alert_id: alert.id,\n      message\n    }\n  });\n}\n\nconst maxRemember = 5000;\nconst ids = Object.keys(state.sentAlertIds);\nif (ids.length > maxRemember) {\n  ids\n    .sort((a, b) => state.sentAlertIds[a] - state.sentAlertIds[b])\n    .slice(0, ids.length - maxRemember)\n    .forEach((id) => delete state.sentAlertIds[id]);\n}\n\nreturn newAlerts;"
+      },
+      "id": "f6d737af-846f-431f-a7f7-28d2f1792781",
+      "name": "Filter New Hazards",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"<YOUR_CHAT_ID>\",\n  \"text\": $json.message\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "470980af-72f4-4f91-831f-b664d42331ec",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1030,
+        260
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 1 Minute": {
+      "main": [
+        [
+          {
+            "node": "Fetch Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Alerts": {
+      "main": [
+        [
+          {
+            "node": "Filter New Hazards",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter New Hazards": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9e2e5582-f79f-432f-a1ad-8b2d6d1e266a",
+  "meta": {
+    "instanceId": "imported-workflow-template"
+  },
+  "id": "hazard-alerts-to-telegram"
+}

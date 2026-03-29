@@ -52,6 +52,9 @@ class CentroidTracker:
             if track.missed > self.max_missed:
                 stale_ids.append(track_id)
                 continue
+            # Only project very recent tracks; older projected tracks create visual trails.
+            if track.missed > 1:
+                continue
             projected.append(
                 DetectionRecord(
                     track_id=track_id,

@@ -24,6 +24,7 @@ class PipelineResult:
 class FramePipelineConfig:
     target_fps: int = 12
     jpeg_quality: int = 65
+    max_buffer_drains: int = 12
 
 
 class FramePipeline:
@@ -134,10 +135,8 @@ class FramePipeline:
             self.capture = self._open_capture()
 
         if self.capture is not None:
-            # Drain a small number of buffered frames so preview stays near real-time.
-            for _ in range(2):
-                self.capture.grab()
-            success, frame = self.capture.read()
+            # Drain buffered frames aggressively and keep only the newest one.
+            success, frame = self._read_latest_frame(self.capture)
             if success and frame is not None:
                 self.last_frame_shape = frame.shape[:2]
                 return frame, (perf_counter() - started) * 1000, "live"
@@ -145,7 +144,7 @@ class FramePipeline:
             self.capture.release()
             self.capture = self._open_capture()
             if self.capture is not None:
-                success, frame = self.capture.read()
+                success, frame = self._read_latest_frame(self.capture)
                 if success and frame is not None:
                     self.last_frame_shape = frame.shape[:2]
                     return frame, (perf_counter() - started) * 1000, "live"
@@ -180,6 +179,19 @@ class FramePipeline:
         capture = cv2.VideoCapture(source)
         capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return capture if capture.isOpened() else None
+
+    def _read_latest_frame(self, capture: cv2.VideoCapture) -> tuple[bool, np.ndarray | None]:
+        """Read the most recent frame available to minimize transport and decode lag."""
+        grabbed = False
+        for _ in range(max(self.config.max_buffer_drains, 1)):
+            if not capture.grab():
+                break
+            grabbed = True
+
+        if grabbed:
+            return capture.retrieve()
+
+        return capture.read()
 
     def _effective_skip_rate(self, runtime_config: RuntimeConfig) -> int:
         base_skip = runtime_config.frame_skip_rate if runtime_config.smart_frame_skip else 1

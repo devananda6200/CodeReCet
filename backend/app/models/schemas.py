@@ -128,6 +128,7 @@ class RuntimeConfig(BaseModel):
     adaptive_resolution: bool = True
     smart_frame_skip: bool = True
     frame_skip_rate: int = Field(default=2, ge=1, le=8)
+    label_remap: dict[str, str] = Field(default_factory=dict)
     class_mappings: dict[str, list[str]] = Field(
         default_factory=lambda: {
             "person": ["persons", "person", "worker"],
@@ -150,6 +151,7 @@ class UpdateRuntimeConfig(BaseModel):
     adaptive_resolution: bool | None = None
     smart_frame_skip: bool | None = None
     frame_skip_rate: int | None = Field(default=None, ge=1, le=8)
+    label_remap: dict[str, str] | None = None
     class_mappings: dict[str, list[str]] | None = None
 
 
