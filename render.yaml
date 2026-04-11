@@ -3,7 +3,7 @@ services:
     name: ops-safety-backend
     env: docker
     dockerfilePath: ./backend/Dockerfile
-    plan: standard
+    plan: free  # Change to 'standard' for production (always-on)
     region: oregon
     envVars:
       - key: OPS_DEMO_MODE
@@ -18,7 +18,19 @@ services:
         value: "3"
       - key: OPS_ADAPTIVE_RESOLUTION
         value: "true"
+      - key: OPS_ENVIRONMENT
+        value: production
+      - key: OPS_ALLOWED_ORIGINS
+        value: '["http://localhost:3000"]'
     healthCheckPath: /health
     scaling:
       minInstances: 1
       maxInstances: 1
+
+  - type: static_site
+    name: ops-safety-frontend
+    staticPublishPath: ./frontend/dist
+    buildCommand: cd frontend && npm install && npm run build
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://ops-safety-backend-xxxxx.onrender.com  # Update after backend deployment
