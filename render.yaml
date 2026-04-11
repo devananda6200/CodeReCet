@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ops-safety-backend
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    plan: standard
+    region: oregon
+    envVars:
+      - key: OPS_DEMO_MODE
+        value: "false"
+      - key: OPS_DEFAULT_BACKEND
+        value: pytorch
+      - key: OPS_DEFAULT_CPU_THREADS
+        value: "4"
+      - key: OPS_DEFAULT_FRAME_SKIP
+        value: "2"
+      - key: OPS_ALERT_PERSISTENCE_FRAMES
+        value: "3"
+      - key: OPS_ADAPTIVE_RESOLUTION
+        value: "true"
+    healthCheckPath: /health
+    scaling:
+      minInstances: 1
+      maxInstances: 1
