@@ -2,8 +2,9 @@ from functools import lru_cache
 from pathlib import Path
 import zipfile
 import logging
+import json
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,30 @@ class Settings(BaseSettings):
     alert_persistence_frames: int = 3
     adaptive_resolution: bool = True
     demo_seed_streams: int = 0
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_allowed_origins(cls, value):
+        """Handle allowed_origins from environment or use defaults."""
+        # If it's already a list, return it
+        if isinstance(value, list):
+            return value
+        # If it's a string, try to parse as JSON
+        if isinstance(value, str):
+            value = value.strip()
+            # If empty, use defaults
+            if not value:
+                return ["http://localhost:5173", "http://localhost:8080"]
+            # Try to parse as JSON
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse OPS_ALLOWED_ORIGINS as JSON: {value}")
+                return ["http://localhost:5173", "http://localhost:8080"]
+        # Default fallback
+        return ["http://localhost:5173", "http://localhost:8080"]
 
 
 @lru_cache
