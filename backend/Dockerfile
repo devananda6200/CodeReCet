@@ -16,10 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install and configure Git LFS
 RUN git lfs install --skip-repo
 
-COPY requirements.txt .
+# Copy requirements from repo root (build context is repo root, not backend/)
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy backend application code
+COPY backend/ .
 
 # Extract model if ZIP file exists (for Git LFS builds)
 RUN if [ -f models/best.pt.zip ]; then \
