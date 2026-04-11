@@ -9,12 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libgl1 \
     libglib2.0-0 \
-    git-lfs \
-    unzip \
     && rm -rf /var/lib/apt/lists/*
-
-# Install and configure Git LFS
-RUN git lfs install --skip-repo
 
 # Copy requirements from repo root (build context is repo root, not backend/)
 COPY backend/requirements.txt .
@@ -23,12 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application code
 COPY backend/ .
 
-# Extract model if ZIP file exists (for Git LFS builds)
-RUN if [ -f models/best.pt.zip ]; then \
-    unzip -q models/best.pt.zip -d models/ && \
-    rm models/best.pt.zip; \
-    fi
-
+# Create necessary directories
 RUN mkdir -p /app/backend/data/uploads /app/backend/data/snapshots /app/backend/data/alerts /app/backend/models
 
 EXPOSE 8000
