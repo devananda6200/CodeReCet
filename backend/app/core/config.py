@@ -3,8 +3,9 @@ from pathlib import Path
 import zipfile
 import logging
 import json
+import os
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -44,9 +45,7 @@ class Settings(BaseSettings):
     snapshot_dir: Path = PROJECT_ROOT / "data" / "snapshots"
     alert_store_path: Path = PROJECT_ROOT / "data" / "alerts" / "recent_alerts.json"
     zone_store_path: Path = PROJECT_ROOT / "data" / "zones.json"
-    allowed_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:5173", "http://localhost:8080"]
-    )
+    allowed_origins: str = ""  # Raw string from env, parsed manually
     default_backend: str = "pytorch"
     default_cpu_threads: int = 4
     max_cpu_threads: int = 8
@@ -58,30 +57,6 @@ class Settings(BaseSettings):
     adaptive_resolution: bool = True
     demo_seed_streams: int = 0
 
-    @field_validator("allowed_origins", mode="before")
-    @classmethod
-    def parse_allowed_origins(cls, value):
-        """Handle allowed_origins from environment or use defaults."""
-        # If it's already a list, return it
-        if isinstance(value, list):
-            return value
-        # If it's a string, try to parse as JSON
-        if isinstance(value, str):
-            value = value.strip()
-            # If empty, use defaults
-            if not value:
-                return ["http://localhost:5173", "http://localhost:8080"]
-            # Try to parse as JSON
-            try:
-                parsed = json.loads(value)
-                if isinstance(parsed, list):
-                    return parsed
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse OPS_ALLOWED_ORIGINS as JSON: {value}")
-                return ["http://localhost:5173", "http://localhost:8080"]
-        # Default fallback
-        return ["http://localhost:5173", "http://localhost:8080"]
-
 
 @lru_cache
 def get_settings() -> Settings:
@@ -92,6 +67,23 @@ def get_settings() -> Settings:
     settings.snapshot_dir.mkdir(parents=True, exist_ok=True)
     settings.alert_store_path.parent.mkdir(parents=True, exist_ok=True)
     settings.zone_store_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Parse allowed_origins from raw string
+    default_origins = ["http://localhost:5173", "http://localhost:8080"]
+    if settings.allowed_origins.strip():
+        try:
+            parsed = json.loads(settings.allowed_origins)
+            if isinstance(parsed, list):
+                # Replace the string with a list (hacky but works)
+                object.__setattr__(settings, "allowed_origins", parsed)
+            else:
+                logger.warning(f"OPS_ALLOWED_ORIGINS is not a list: {parsed}")
+                object.__setattr__(settings, "allowed_origins", default_origins)
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse OPS_ALLOWED_ORIGINS as JSON: {settings.allowed_origins}. Error: {e}")
+            object.__setattr__(settings, "allowed_origins", default_origins)
+    else:
+        object.__setattr__(settings, "allowed_origins", default_origins)
     
     # Extract model from zip if needed
     extract_model_if_needed(bundled_model)
