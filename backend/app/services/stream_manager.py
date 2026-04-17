@@ -121,15 +121,21 @@ class StreamManager:
             return
         stream.record.runtime_status = StreamRuntimeStatus.starting
         stream.record.model_backend = self.config_store.get().backend
-        stream.pipeline = FramePipeline(
-            stream_id=stream.record.id,
-            stream_name=stream.record.name,
-            source_type=stream.record.source_type.value,
-            source_uri=stream.record.source_uri,
-            model_service=self.model_service,
-            safety_engine=self.safety_engine,
-        )
-        stream.task = asyncio.create_task(self._run_stream(stream_id))
+        try:
+            stream.pipeline = FramePipeline(
+                stream_id=stream.record.id,
+                stream_name=stream.record.name,
+                source_type=stream.record.source_type.value,
+                source_uri=stream.record.source_uri,
+                model_service=self.model_service,
+                safety_engine=self.safety_engine,
+            )
+            stream.task = asyncio.create_task(self._run_stream(stream_id))
+        except Exception as e:
+            stream.record.runtime_status = StreamRuntimeStatus.error
+            stream.record.error_message = f"Initialization failed: {e}"
+            logger.exception("Failed to initialize pipeline for %s", stream_id)
+            raise
 
     async def stop_stream(self, stream_id: str) -> None:
         stream = self._streams.get(stream_id)

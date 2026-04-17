@@ -7,7 +7,9 @@ services:
     region: oregon
     envVars:
       - key: OPS_DEMO_MODE
-        value: "false"
+        value: "true"
+      - key: OPS_DEMO_SEED_STREAMS
+        value: "1"
       - key: OPS_DEFAULT_BACKEND
         value: mock
       - key: OPS_DEFAULT_CPU_THREADS

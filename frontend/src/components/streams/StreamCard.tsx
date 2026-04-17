@@ -103,11 +103,11 @@ export function StreamCard({
         <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-4 py-3">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-mist">Runtime</p>
-            <p className={`mt-1 text-sm font-medium ${stream.runtime_status === "error" ? "text-signal" : "text-white"}`}>
+            <p className={`mt-1 text-sm font-medium ${stream.runtime_status === "error" ? "text-danger" : "text-white"}`}>
               {stream.runtime_status} {stream.active_alerts > 0 ? `| ${stream.active_alerts} active` : ""}
             </p>
             {stream.runtime_status === "error" && stream.error_message && (
-              <p className="mt-1 text-[10px] italic leading-tight text-signal/80">
+              <p className="mt-1 text-[10px] italic leading-tight text-danger/80">
                 {stream.error_message}
               </p>
             )}
