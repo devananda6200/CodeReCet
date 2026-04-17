@@ -21,7 +21,7 @@ services:
       - key: OPS_ENVIRONMENT
         value: production
       - key: OPS_ALLOWED_ORIGINS
-        value: '["http://localhost:3000"]'
+        value: '["https://ops-safety-monitor-frontend.onrender.com"]'
     healthCheckPath: /health
     scaling:
       minInstances: 1
