@@ -106,6 +106,11 @@ export function StreamCard({
             <p className={`mt-1 text-sm font-medium ${stream.runtime_status === "error" ? "text-signal" : "text-white"}`}>
               {stream.runtime_status} {stream.active_alerts > 0 ? `| ${stream.active_alerts} active` : ""}
             </p>
+            {stream.runtime_status === "error" && stream.error_message && (
+              <p className="mt-1 text-[10px] italic leading-tight text-signal/80">
+                {stream.error_message}
+              </p>
+            )}
           </div>
           <button
             type="button"

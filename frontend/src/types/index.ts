@@ -34,6 +34,7 @@ export interface StreamRecord {
   runtime_status: StreamRuntimeStatus;
   safety_status: StreamSafetyStatus;
   preview_url?: string | null;
+  error_message: string | null;
   model_backend: BackendChoice;
   active_alerts: number;
   last_seen_at: string;

@@ -74,6 +74,7 @@ class StreamRecord(BaseModel):
     runtime_status: StreamRuntimeStatus = StreamRuntimeStatus.stopped
     safety_status: StreamSafetyStatus = StreamSafetyStatus.safe
     preview_url: str | None = None
+    error_message: str | None = None
     model_backend: BackendChoice = BackendChoice.pytorch
     active_alerts: int = 0
     last_seen_at: datetime = Field(default_factory=utc_now)

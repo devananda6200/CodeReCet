@@ -223,6 +223,7 @@ class StreamManager:
                     stream.record.runtime_status = StreamRuntimeStatus.starting
                     if consecutive_failures >= 15:
                         stream.record.runtime_status = StreamRuntimeStatus.error
+                        stream.record.error_message = f"Failed after 15 retries: {exc}"
                         logger.exception("Stream %s failed after retries", stream.record.id)
                         return
                     logger.warning(
@@ -256,8 +257,9 @@ class StreamManager:
         except asyncio.CancelledError:
             stream.record.runtime_status = StreamRuntimeStatus.stopped
             raise
-        except Exception:
+        except Exception as e:
             stream.record.runtime_status = StreamRuntimeStatus.error
+            stream.record.error_message = str(e)
             logger.exception("Unexpected stream failure for %s", stream.record.id)
 
     def _normalize_source_uri(self, source_type: StreamSourceType, source_uri: str | None) -> str | None:
