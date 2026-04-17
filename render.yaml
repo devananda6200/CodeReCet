@@ -34,10 +34,10 @@ services:
     buildCommand: cd frontend && npm install && npm run build
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://ops-safety-backend-xxxxx.onrender.com  # Update after backend deployment
+        value: https://coderecet-g31m.onrender.com
       - key: VITE_STREAM_WS_URL
-        value: wss://ops-safety-backend-xxxxx.onrender.com/ws/streams # Update after backend deployment
+        value: wss://coderecet-g31m.onrender.com/ws/streams
       - key: VITE_ALERT_WS_URL
-        value: wss://ops-safety-backend-xxxxx.onrender.com/ws/alerts # Update after backend deployment
+        value: wss://coderecet-g31m.onrender.com/ws/alerts
       - key: VITE_METRICS_WS_URL
-        value: wss://ops-safety-backend-xxxxx.onrender.com/ws/metrics # Update after backend deployment
+        value: wss://coderecet-g31m.onrender.com/ws/metrics
