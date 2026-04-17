@@ -10,7 +10,8 @@ export default defineConfig({
             "/config": "http://localhost:8000",
             "/streams": "http://localhost:8000",
             "/alerts": "http://localhost:8000",
-            "/zones": "http://localhost:8000"
+            "/zones": "http://localhost:8000",
+            "/metrics": "http://localhost:8000"
         }
     }
 });

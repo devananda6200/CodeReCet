@@ -1,13 +1,19 @@
-import type { AlertListResponse, PolygonZone, RuntimeConfig, StreamListResponse, SummaryMetrics } from "../types";
+import type { AlertListResponse, PolygonZone, RuntimeConfig, StreamListResponse, StreamRecord, SummaryMetrics } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    ...((init?.headers as Record<string, string>) ?? {})
+  };
+
+  if (!(init?.body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json"
-    },
-    ...init
+    ...init,
+    headers
   });
 
   if (!response.ok) {
@@ -29,7 +35,7 @@ export const api = {
       body: JSON.stringify(payload)
     }),
   addStream: (payload: { name: string; source_type: "demo" | "rtsp" | "http" | "webcam" | "file"; source_uri?: string }) =>
-    request("/streams/add", {
+    request<StreamRecord>("/streams/add", {
       method: "POST",
       body: JSON.stringify(payload)
     }),

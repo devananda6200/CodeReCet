@@ -74,6 +74,7 @@ export interface RuntimeConfig {
   smart_frame_skip: boolean;
   frame_skip_rate: number;
   class_mappings: Record<string, string[]>;
+  label_remap: Record<string, string>;
 }
 
 export interface SummaryMetrics {

@@ -90,7 +90,8 @@ export const mockConfig: RuntimeConfig = {
     helmet: ["helmets", "helmet", "hardhat", "hard_hat"],
     vest: ["vests", "vest", "safety_vest", "jacket"],
     machine: []
-  }
+  },
+  label_remap: {}
 };
 
 export const mockSummary: SummaryMetrics = {

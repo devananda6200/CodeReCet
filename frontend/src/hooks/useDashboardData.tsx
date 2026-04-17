@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -12,9 +13,20 @@ import { mockAlerts, mockConfig, mockStreams, mockSummary } from "../services/mo
 import { createSocket } from "../services/ws";
 import type { AlertRecord, PolygonZone, RuntimeConfig, StreamRecord, SummaryMetrics } from "../types";
 
-const STREAM_WS_URL = import.meta.env.VITE_STREAM_WS_URL ?? "ws://localhost:8000/ws/streams";
-const ALERT_WS_URL = import.meta.env.VITE_ALERT_WS_URL ?? "ws://localhost:8000/ws/alerts";
-const METRICS_WS_URL = import.meta.env.VITE_METRICS_WS_URL ?? "ws://localhost:8000/ws/metrics";
+const getWsUrl = (path: string, envVar: string) => {
+  const envUrl = import.meta.env[envVar];
+  if (envUrl) return envUrl;
+
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+  const wsBase = apiBase.replace(/^http/, "ws");
+  // Ensure we don't have double slashes if apiBase ends with /
+  const normalizedBase = wsBase.endsWith("/") ? wsBase.slice(0, -1) : wsBase;
+  return `${normalizedBase}${path}`;
+};
+
+const STREAM_WS_URL = getWsUrl("/ws/streams", "VITE_STREAM_WS_URL");
+const ALERT_WS_URL = getWsUrl("/ws/alerts", "VITE_ALERT_WS_URL");
+const METRICS_WS_URL = getWsUrl("/ws/metrics", "VITE_METRICS_WS_URL");
 
 interface DashboardDataState {
   streams: StreamRecord[];
@@ -44,7 +56,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const [streamData, alertData, configData, summaryData] = await Promise.all([
         api.listStreams(),
@@ -57,7 +69,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       setConfig(configData);
       setSummary(summaryData);
       setUsingFallback(false);
-    } catch {
+    } catch (error) {
+      console.error("Failed to fetch dashboard data, using mock fallback:", error);
       setStreams(mockStreams);
       setAlerts(mockAlerts);
       setConfig(mockConfig);
@@ -66,98 +79,116 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const toggleStream = async (stream: StreamRecord) => {
-    if (usingFallback) {
-      setStreams((current) =>
-        current.map((item) =>
-          item.id === stream.id
-            ? {
-                ...item,
-                runtime_status: item.runtime_status === "running" ? "stopped" : "running"
-              }
-            : item
-        )
-      );
-      return;
-    }
+  const toggleStream = useCallback(
+    async (stream: StreamRecord) => {
+      if (usingFallback) {
+        setStreams((current) =>
+          current.map((item) =>
+            item.id === stream.id
+              ? {
+                  ...item,
+                  runtime_status: item.runtime_status === "running" ? "stopped" : "running"
+                }
+              : item
+          )
+        );
+        return;
+      }
 
-    if (stream.runtime_status === "running") {
-      await api.stopStream(stream.id);
-    } else {
-      await api.startStream(stream.id);
-    }
-    await refresh();
-  };
+      if (stream.runtime_status === "running") {
+        await api.stopStream(stream.id);
+      } else {
+        await api.startStream(stream.id);
+      }
+      await refresh();
+    },
+    [usingFallback, refresh]
+  );
 
-  const saveConfig = async (payload: Partial<RuntimeConfig>) => {
-    if (usingFallback) {
-      setConfig((current) => ({ ...current, ...payload }));
-      return;
-    }
-    const updated = await api.updateConfig(payload);
-    setConfig(updated);
-  };
+  const saveConfig = useCallback(
+    async (payload: Partial<RuntimeConfig>) => {
+      if (usingFallback) {
+        setConfig((current) => ({ ...current, ...payload }));
+        return;
+      }
+      const updated = await api.updateConfig(payload);
+      setConfig(updated);
+    },
+    [usingFallback]
+  );
 
-  const addStream = async (payload: {
-    name: string;
-    source_type: "demo" | "rtsp" | "http" | "webcam" | "file";
-    source_uri?: string;
-  }) => {
-    if (usingFallback) {
-      setStreams((current) => [
-        ...current,
-        {
-          ...mockStreams[0],
-          id: crypto.randomUUID(),
-          name: payload.name,
-          source_type: payload.source_type,
-          source_uri: payload.source_uri ?? null,
-          runtime_status: "stopped"
-        }
-      ]);
-      return;
-    }
-    await api.addStream(payload);
-    await refresh();
-  };
+  const addStream = useCallback(
+    async (payload: {
+      name: string;
+      source_type: "demo" | "rtsp" | "http" | "webcam" | "file";
+      source_uri?: string;
+    }) => {
+      if (usingFallback) {
+        setStreams((current) => [
+          ...current,
+          {
+            ...mockStreams[0],
+            id: crypto.randomUUID(),
+            name: payload.name,
+            source_type: payload.source_type,
+            source_uri: payload.source_uri ?? null,
+            runtime_status: "stopped"
+          }
+        ]);
+        return;
+      }
+      await api.addStream(payload);
+      await refresh();
+    },
+    [usingFallback, refresh]
+  );
 
-  const uploadStream = async (file: File) => {
-    if (usingFallback) {
-      setStreams((current) => [
-        ...current,
-        {
-          ...mockStreams[0],
-          id: crypto.randomUUID(),
-          name: file.name,
-          source_type: "file",
-          source_uri: file.name,
-          runtime_status: "stopped"
-        }
-      ]);
-      return;
-    }
-    await api.uploadStream(file);
-    await refresh();
-  };
+  const uploadStream = useCallback(
+    async (file: File) => {
+      if (usingFallback) {
+        setStreams((current) => [
+          ...current,
+          {
+            ...mockStreams[0],
+            id: crypto.randomUUID(),
+            name: file.name,
+            source_type: "file",
+            source_uri: file.name,
+            runtime_status: "stopped"
+          }
+        ]);
+        return;
+      }
+      await api.uploadStream(file);
+      await refresh();
+    },
+    [usingFallback, refresh]
+  );
 
-  const loadZone = async (streamId: string) => {
-    if (usingFallback) {
-      setZones((current) => ({ ...current, [streamId]: current[streamId] ?? null }));
-      return;
-    }
-    const zone = await api.getZone(streamId);
-    setZones((current) => ({ ...current, [streamId]: zone }));
-  };
+  const loadZone = useCallback(
+    async (streamId: string) => {
+      if (usingFallback) {
+        setZones((current) => ({ ...current, [streamId]: current[streamId] ?? null }));
+        return;
+      }
+      const zone = await api.getZone(streamId);
+      setZones((current) => ({ ...current, [streamId]: zone }));
+    },
+    [usingFallback]
+  );
 
-  const saveZone = async (streamId: string, zone: PolygonZone) => {
-    setZones((current) => ({ ...current, [streamId]: zone }));
-    if (usingFallback) {
-      return;
-    }
-    await api.saveZone(streamId, zone);
-  };
+  const saveZone = useCallback(
+    async (streamId: string, zone: PolygonZone) => {
+      setZones((current) => ({ ...current, [streamId]: zone }));
+      if (usingFallback) {
+        return;
+      }
+      await api.saveZone(streamId, zone);
+    },
+    [usingFallback]
+  );
 
   useEffect(() => {
     void refresh();
@@ -215,7 +246,22 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       loadZone,
       saveZone
     }),
-    [alerts, config, loading, streams, summary, usingFallback, zones]
+    [
+      alerts,
+      config,
+      loading,
+      streams,
+      summary,
+      usingFallback,
+      zones,
+      refresh,
+      toggleStream,
+      saveConfig,
+      addStream,
+      uploadStream,
+      loadZone,
+      saveZone
+    ]
   );
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
