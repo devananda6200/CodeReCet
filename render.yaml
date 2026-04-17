@@ -27,8 +27,9 @@ services:
       minInstances: 1
       maxInstances: 1
 
-  - type: static_site
+  - type: web
     name: ops-safety-frontend
+    runtime: static
     staticPublishPath: ./frontend/dist
     buildCommand: cd frontend && npm install && npm run build
     envVars:
