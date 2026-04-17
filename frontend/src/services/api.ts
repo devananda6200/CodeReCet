@@ -1,6 +1,7 @@
 import type { AlertListResponse, PolygonZone, RuntimeConfig, StreamListResponse, StreamRecord, SummaryMetrics } from "../types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL = RAW_API_BASE_URL.endsWith("/") ? RAW_API_BASE_URL.slice(0, -1) : RAW_API_BASE_URL;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
