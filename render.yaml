@@ -9,9 +9,9 @@ services:
       - key: OPS_DEMO_MODE
         value: "false"
       - key: OPS_DEFAULT_BACKEND
-        value: pytorch
+        value: mock
       - key: OPS_DEFAULT_CPU_THREADS
-        value: "4"
+        value: "1"
       - key: OPS_DEFAULT_FRAME_SKIP
         value: "2"
       - key: OPS_ALERT_PERSISTENCE_FRAMES

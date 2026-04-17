@@ -1,4 +1,4 @@
-export type BackendChoice = "pytorch" | "onnxruntime" | "openvino";
+export type BackendChoice = "pytorch" | "onnxruntime" | "openvino" | "mock";
 
 export type StreamRuntimeStatus = "stopped" | "starting" | "running" | "error";
 

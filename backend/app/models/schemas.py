@@ -41,6 +41,7 @@ class BackendChoice(str, Enum):
     pytorch = "pytorch"
     onnx = "onnxruntime"
     openvino = "openvino"
+    mock = "mock"
 
 
 class MessageResponse(BaseModel):

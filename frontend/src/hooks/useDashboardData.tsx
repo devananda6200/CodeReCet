@@ -83,38 +83,48 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
   const toggleStream = useCallback(
     async (stream: StreamRecord) => {
-      if (usingFallback) {
-        setStreams((current) =>
-          current.map((item) =>
-            item.id === stream.id
-              ? {
-                  ...item,
-                  runtime_status: item.runtime_status === "running" ? "stopped" : "running"
-                }
-              : item
-          )
-        );
-        return;
-      }
+      try {
+        if (usingFallback) {
+          setStreams((current) =>
+            current.map((item) =>
+              item.id === stream.id
+                ? {
+                    ...item,
+                    runtime_status: item.runtime_status === "running" ? "stopped" : "running"
+                  }
+                : item
+            )
+          );
+          return;
+        }
 
-      if (stream.runtime_status === "running") {
-        await api.stopStream(stream.id);
-      } else {
-        await api.startStream(stream.id);
+        if (stream.runtime_status === "running") {
+          await api.stopStream(stream.id);
+        } else {
+          await api.startStream(stream.id);
+        }
+        await refresh();
+      } catch (error) {
+        console.error("Failed to toggle stream:", error);
+        alert(`Failed to ${stream.runtime_status === "running" ? "stop" : "start"} stream. Check backend logs.`);
       }
-      await refresh();
     },
     [usingFallback, refresh]
   );
 
   const saveConfig = useCallback(
     async (payload: Partial<RuntimeConfig>) => {
-      if (usingFallback) {
-        setConfig((current) => ({ ...current, ...payload }));
-        return;
+      try {
+        if (usingFallback) {
+          setConfig((current) => ({ ...current, ...payload }));
+          return;
+        }
+        const updated = await api.updateConfig(payload);
+        setConfig(updated);
+      } catch (error) {
+        console.error("Failed to save config:", error);
+        alert("Failed to save configuration. Check backend logs.");
       }
-      const updated = await api.updateConfig(payload);
-      setConfig(updated);
     },
     [usingFallback]
   );
@@ -125,22 +135,27 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
       source_type: "demo" | "rtsp" | "http" | "webcam" | "file";
       source_uri?: string;
     }) => {
-      if (usingFallback) {
-        setStreams((current) => [
-          ...current,
-          {
-            ...mockStreams[0],
-            id: crypto.randomUUID(),
-            name: payload.name,
-            source_type: payload.source_type,
-            source_uri: payload.source_uri ?? null,
-            runtime_status: "stopped"
-          }
-        ]);
-        return;
+      try {
+        if (usingFallback) {
+          setStreams((current) => [
+            ...current,
+            {
+              ...mockStreams[0],
+              id: crypto.randomUUID(),
+              name: payload.name,
+              source_type: payload.source_type,
+              source_uri: payload.source_uri ?? null,
+              runtime_status: "stopped"
+            }
+          ]);
+          return;
+        }
+        await api.addStream(payload);
+        await refresh();
+      } catch (error) {
+        console.error("Failed to add stream:", error);
+        alert("Failed to add stream. Check backend logs.");
       }
-      await api.addStream(payload);
-      await refresh();
     },
     [usingFallback, refresh]
   );

@@ -29,6 +29,11 @@ class ModelService:
         stream_seed: int,
     ) -> tuple[list[DetectionRecord], float, str]:
         started = perf_counter()
+        if config.backend == BackendChoice.mock:
+            detections = self._mock_detections(frame, frame_index, stream_seed)
+            latency_ms = (perf_counter() - started) * 1000
+            return detections, latency_ms, "mock"
+
         runtime_artifact = self._resolve_runtime_artifact(config)
         self._ensure_loaded(config, runtime_artifact)
 
@@ -64,6 +69,12 @@ class ModelService:
 
     def _ensure_loaded(self, config: RuntimeConfig, runtime_artifact: Path) -> None:
         signature = (config.model_path, config.backend.value, config.cpu_threads, str(runtime_artifact))
+        if config.backend == BackendChoice.mock:
+            self._model = None
+            self._model_signature = signature
+            self._runtime_mode = "mock"
+            return
+
         if self._model_signature == signature:
             return
 
